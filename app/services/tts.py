@@ -211,7 +211,7 @@ class TTSService:
         normalizer.sample_rate = self.model.sample_rate
         had_chunks = False
 
-        async for chunk_text, _tokens, pause_duration_s in smart_split(text):
+        async for chunk_text, pause_duration_s in smart_split(text):
             if pause_duration_s and pause_duration_s > 0:
                 silence = np.zeros(int(pause_duration_s * self.model.sample_rate), dtype=np.int16)
                 pause_chunk = AudioChunk(audio=silence, sample_rate=self.model.sample_rate)

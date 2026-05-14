@@ -1,6 +1,6 @@
 import re
+from typing import AsyncGenerator, Tuple, Optional
 from unicodedata import normalize
-from typing import AsyncGenerator, Tuple, List, Optional
 
 # Pre-compiled regex patterns for better performance
 _EMOJI_PATTERN = re.compile(
@@ -115,14 +115,17 @@ def clean_text(text: str) -> str:
 
 async def smart_split(
     text: str,
-    max_chunk_length: int = 300,
-) -> AsyncGenerator[Tuple[str, List[int], Optional[float]], None]:
+    max_chunk_length: int | None = None,
+) -> AsyncGenerator[Tuple[str, Optional[float]], None]:
+    """Split text into chunks by paragraphs and sentences.
+
+    Yields ``(chunk_text, pause_duration_s)``.
+    ``pause_duration_s`` is set when the chunk is a silence marker (``[pause:N]``),
+    otherwise ``None``.
     """
-    Split text into chunks by paragraphs and sentences.
-    Yields: (chunk_text, tokens, pause_duration_s)
-    
-    Note: tokens are always empty list (kept for API compatibility)
-    """
+    from app.core.config import settings  # local import avoids circular dependency
+    chunk_limit = max_chunk_length if max_chunk_length is not None else settings.MAX_CHUNK_LENGTH
+
     # Split by pause tags first
     parts = _PAUSE_TAG_PATTERN.split(text)
     
@@ -130,7 +133,7 @@ async def smart_split(
         # Every odd index is a pause duration
         if i % 2 == 1:
             try:
-                yield "", [], float(part)
+                yield "", float(part)
             except ValueError:
                 continue
             continue
@@ -157,12 +160,12 @@ async def smart_split(
                 if not sentence:
                     continue
                     
-                if len(current_chunk) + len(sentence) + 1 <= max_chunk_length:
+                if len(current_chunk) + len(sentence) + 1 <= chunk_limit:
                     current_chunk += (" " if current_chunk else "") + sentence
                 else:
                     if current_chunk:
-                        yield current_chunk.strip(), [], None
+                        yield current_chunk.strip(), None
                     current_chunk = sentence
             
             if current_chunk:
-                yield current_chunk.strip(), [], None
+                yield current_chunk.strip(), None

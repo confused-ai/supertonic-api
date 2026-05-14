@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Audio trimming & gap padding
     GAP_TRIM_MS: int = 100
     DYNAMIC_GAP_TRIM_PADDING_MS: int = 50
-    DYNAMIC_GAP_TRIM_PADDING_CHAR_MULTIPLIER: dict = {
+    DYNAMIC_GAP_TRIM_PADDING_CHAR_MULTIPLIER: dict[str, float] = {
         ",": 1.2,
         ".": 1.5,
         "!": 1.5,

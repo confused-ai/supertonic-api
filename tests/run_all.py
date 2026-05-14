@@ -115,7 +115,7 @@ def run_unit_tests() -> Suite:
     # smart_split
     async def _collect_split(text, max_chunk=300):
         chunks = []
-        async for chunk_text, _, pause in smart_split(text, max_chunk_length=max_chunk):
+        async for chunk_text, pause in smart_split(text, max_chunk_length=max_chunk):
             chunks.append((chunk_text, pause))
         return chunks
 
