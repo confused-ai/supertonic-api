@@ -160,11 +160,11 @@ def run_unit_tests() -> Suite:
     _schema("schema: valid minimal input",         True,  input="Hello")
     _schema("schema: empty input rejected",        False, input="")
     _schema("schema: input > 4096 rejected",       False, input="x" * 4097)
-    _schema("schema: speed below 0.5 rejected",    False, input="Hi", speed=0.1)
+    _schema("schema: speed below 0.7 rejected",    False, input="Hi", speed=0.5)
     _schema("schema: speed above 2.0 rejected",    False, input="Hi", speed=3.0)
     _schema("schema: invalid format rejected",     False, input="Hi", response_format="ogg")
     _schema("schema: valid mp3 format",            True,  input="Hi", response_format="mp3")
-    _schema("schema: valid speed boundary 0.5",    True,  input="Hi", speed=0.5)
+    _schema("schema: valid speed boundary 0.7",    True,  input="Hi", speed=0.7)
     _schema("schema: valid speed boundary 2.0",    True,  input="Hi", speed=2.0)
 
     # ---- audio normalizer ----
@@ -298,7 +298,7 @@ async def run_integration_tests(base_url: str) -> Suite:
             )
 
         # Speed boundaries
-        await speech("POST /v1/audio/speech speed=0.5", {**base, "speed": 0.5})
+        await speech("POST /v1/audio/speech speed=0.7", {**base, "speed": 0.7})
         await speech("POST /v1/audio/speech speed=2.0", {**base, "speed": 2.0})
 
         # normalize=false
@@ -326,7 +326,7 @@ async def run_integration_tests(base_url: str) -> Suite:
         await speech("POST /v1/audio/speech bad format → 422",
                      {"input": "Hi", "response_format": "ogg"}, expected_status=422)
         await speech("POST /v1/audio/speech speed too low → 422",
-                     {"input": "Hi", "speed": 0.1}, expected_status=422)
+                     {"input": "Hi", "speed": 0.5}, expected_status=422)
         await speech("POST /v1/audio/speech speed too high → 422",
                      {"input": "Hi", "speed": 3.0}, expected_status=422)
 
@@ -537,31 +537,13 @@ async def _check_server(base_url: str) -> bool:
         return False
 
 
-async def main():
-    parser = argparse.ArgumentParser(description="Supertonic TTS unified test runner")
-    parser.add_argument("--url",          default="http://localhost:8800", help="API base URL")
-    parser.add_argument("--unit-only",    action="store_true", help="Unit tests only (no server)")
-    parser.add_argument("--stress",       action="store_true", help="Include stress test suite")
-    parser.add_argument("--concurrency",  type=int, default=10, help="Stress test concurrency")
-    parser.add_argument("--requests",     type=int, default=50,  help="Stress test total requests")
-    args = parser.parse_args()
-
-    suites: list[Suite] = []
-
-    # Unit tests — always run
-    suites.append(run_unit_tests())
-
-    if args.unit_only:
-        _print_summary(suites)
-        sys.exit(0 if suites[0].failed == 0 else 1)
-
-    # Check server
+async def _async_main(args, suites: list[Suite]) -> None:
+    """Async portion: server health check + integration/eval/stress suites."""
     _info(f"Checking server at {args.url}…")
     if not await _check_server(args.url):
         print(f"\n{RED}Server not reachable at {args.url}. Skipping integration/eval/stress.{RESET}")
         print("Run with --unit-only to skip server tests.\n")
-        _print_summary(suites)
-        sys.exit(1)
+        return
     _info("Server is healthy.\n")
 
     suites.append(await run_integration_tests(args.url))
@@ -570,9 +552,28 @@ async def main():
     if args.stress:
         suites.append(await run_stress_test(args.url, args.concurrency, args.requests))
 
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Supertonic TTS unified test runner")
+    parser.add_argument("--url",          default="http://localhost:8800", help="API base URL")
+    parser.add_argument("--unit-only",    action="store_true", help="Unit tests only (no server)")
+    parser.add_argument("--stress",       action="store_true", help="Include stress test suite")
+    parser.add_argument("--concurrency",  type=int, default=10, help="Stress test concurrency")
+    parser.add_argument("--requests",     type=int, default=50,  help="Stress test total requests")
+    args = parser.parse_args()
+
+    # Unit tests run synchronously — NO running event loop at this point,
+    # so asyncio.new_event_loop().run_until_complete() works inside them.
+    suites: list[Suite] = [run_unit_tests()]
+
+    if args.unit_only:
+        ok = _print_summary(suites)
+        sys.exit(0 if ok else 1)
+
+    asyncio.run(_async_main(args, suites))
     ok = _print_summary(suites)
     sys.exit(0 if ok else 1)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

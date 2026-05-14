@@ -10,7 +10,7 @@ class OpenAIInput(BaseModel):
     response_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = Field(
         default="mp3", description="Output audio format"
     )
-    speed: Optional[float] = Field(default=1.0, ge=0.5, le=2.0, description="Speech speed multiplier (0.5–2.0)")
+    speed: Optional[float] = Field(default=1.0, ge=0.7, le=2.0, description="Speech speed multiplier (0.7–2.0)")
     normalize: bool = Field(default=True, description="Whether to normalize text before synthesis")
     lang: str = Field(
         default="en",
