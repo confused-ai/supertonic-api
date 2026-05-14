@@ -1,781 +1,1152 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supertonic TTS</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <!-- Primary Meta Tags -->
-    <title>Supertonic TTS - OpenAI-Compatible Text-to-Speech API</title>
-    <meta name="title" content="Supertonic TTS - OpenAI-Compatible Text-to-Speech API">
-    <meta name="description"
-        content="OpenAI-compatible Text-to-Speech API with high performance, multiple voice support, GPU acceleration, and streaming audio. Free and open source.">
-    <meta name="keywords"
-        content="text-to-speech, TTS, API, OpenAI compatible, speech synthesis, AI audio, voice generation, Python, FastAPI, Supertonic, ONNX">
-    <meta name="author" content="Supertonic Community">
-    <meta name="robots" content="index, follow">
-    <meta name="language" content="English">
-    <meta name="revisit-after" content="7 days">
+/* ── Tokens ── */
+:root {
+  --bg:          #09090b;
+  --surface:     #111113;
+  --surface-2:   #18181b;
+  --border:      #27272a;
+  --border-2:    #3f3f46;
+  --text:        #fafafa;
+  --muted:       #a1a1aa;
+  --accent:      #6366f1;
+  --accent-dim:  rgba(99,102,241,.12);
+  --accent-h:    #818cf8;
+  --green:       #22c55e;
+  --green-dim:   rgba(34,197,94,.12);
+  --red:         #ef4444;
+  --red-dim:     rgba(239,68,68,.12);
+  --amber:       #f59e0b;
+  --purple:      #a855f7;
+  --purple-dim:  rgba(168,85,247,.12);
+  --r:           10px;
+  --r-sm:        6px;
+  --shadow:      0 1px 3px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.4);
+}
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://github.com/supertoneinc/supertonic-fastapi/">
-    <meta property="og:title" content="Supertonic TTS - OpenAI-Compatible Text-to-Speech API">
-    <meta property="og:description"
-        content="High-performance, OpenAI-compatible Text-to-Speech API with GPU acceleration, streaming audio, and multiple voice support. Deploy in minutes with Docker.">
-    <meta property="og:image"
-        content="https://raw.githubusercontent.com/supertoneinc/supertonic-fastapi/main/docs/og-image.png">
-    <meta property="og:site_name" content="Supertonic TTS">
-    <meta property="og:locale" content="en_US">
+/* ── Base ── */
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://github.com/supertoneinc/supertonic-fastapi/">
-    <meta property="twitter:title" content="Supertonic TTS - OpenAI-Compatible Text-to-Speech API">
-    <meta property="twitter:description"
-        content="High-performance, OpenAI-compatible Text-to-Speech API with GPU acceleration, streaming audio, and multiple voice support.">
-    <meta property="twitter:image"
-        content="https://raw.githubusercontent.com/supertoneinc/supertonic-fastapi/main/docs/og-image.png">
+a { color: var(--accent-h); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code {
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.8rem;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
 
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://github.com/supertoneinc/supertonic-fastapi/">
+/* ── Layout ── */
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>">
+/* ── Topbar ── */
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px;
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
 
-    <!-- Schema.org Structured Data -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Supertonic TTS API",
-        "description": "OpenAI-compatible Text-to-Speech API with high performance, multiple voice support, and GPU acceleration",
-        "url": "https://github.com/supertoneinc/supertonic-fastapi",
-        "applicationCategory": "DeveloperApplication",
-        "operatingSystem": "Docker, Python",
-        "programmingLanguage": "Python",
-        "license": "https://opensource.org/licenses/MIT",
-        "author": {
-            "@type": "Organization",
-            "name": "Supertonic Community"
-        },
-        "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-        }
-    }
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --success: #10b981;
-            --error: #ef4444;
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --surface-hover: #334155;
-            --text: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border: #334155;
-        }
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  text-decoration: none;
+}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+.logo-icon {
+  width: 28px; height: 28px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(99,102,241,.3);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 2rem;
-        }
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--border-2);
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.status-dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.status-dot.err { background: var(--red); }
 
-        header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
+.status-label {
+  font-size: 12px;
+  color: var(--muted);
+}
 
-        h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
+.topbar-link {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  transition: border-color .2s, color .2s;
+  text-decoration: none;
+}
+.topbar-link:hover { border-color: var(--border-2); color: var(--text); text-decoration: none; }
 
-        .subtitle {
-            color: var(--text-secondary);
-        }
+/* ── Sidebar ── */
+.sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-        .card {
-            background: var(--surface);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            border: 1px solid var(--border);
-        }
+.nav-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 8px 10px 4px;
+}
 
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--border);
-        }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-weight: 450;
+  color: var(--muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background .15s, color .15s;
+}
 
-        .card-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent-h); }
 
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
+.nav-icon { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; }
 
-        .status-healthy {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-        }
+/* ── Content ── */
+.content {
+  padding: 28px 32px;
+  overflow-y: auto;
+  max-width: 820px;
+}
 
-        .status-loading {
-            background: rgba(59, 130, 246, 0.2);
-            color: var(--primary);
-        }
+.page { display: none; }
+.page.active { display: block; }
 
-        .status-error {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--error);
-        }
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
 
-        .form-group {
-            margin-bottom: 1rem;
-        }
+.page-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
 
-        label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-            color: var(--text-secondary);
-        }
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
 
-        textarea,
-        input,
-        select {
-            width: 100%;
-            padding: 0.75rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-family: inherit;
-            font-size: 0.875rem;
-            transition: border-color 0.2s;
-        }
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
 
-        textarea:focus,
-        input:focus,
-        select:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
+/* ── Forms ── */
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
 
-        textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
 
-        .form-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
-        }
+input[type=text],
+input[type=number],
+input[type=password],
+select,
+textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  padding: 8px 11px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color .2s;
+  appearance: none;
+}
 
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.875rem;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s;
-        }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
 
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
 
-        .btn-primary:hover {
-            background: var(--primary-hover);
-        }
+textarea { resize: vertical; min-height: 110px; }
 
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 
-        .btn-secondary {
-            background: var(--surface-hover);
-            color: var(--text);
-        }
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all .15s;
+  white-space: nowrap;
+}
 
-        .btn-secondary:hover {
-            background: var(--border);
-        }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent-h); border-color: var(--accent-h); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; }
 
-        .btn-group {
-            display: flex;
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+}
+.btn-ghost:hover { border-color: var(--border-2); color: var(--text); background: var(--surface-2); }
 
-        .audio-player {
-            width: 100%;
-            margin-top: 1rem;
-        }
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--red);
+  border-color: rgba(239,68,68,.3);
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn-danger-ghost:hover { background: var(--red-dim); }
 
-        .result-section {
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--border);
-        }
+.btn-accent-ghost {
+  background: transparent;
+  color: var(--accent-h);
+  border-color: rgba(99,102,241,.3);
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.btn-accent-ghost:hover { background: var(--accent-dim); }
 
-        .result-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
-        }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
 
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
+.btn-row { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
 
-        .metric {
-            background: var(--bg);
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-        }
+/* ── Spinner ── */
+.spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-        .metric-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary);
-        }
+/* ── Toast ── */
+.toast {
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  margin-top: 10px;
+  display: none;
+}
+.toast.show { display: block; }
+.toast.ok  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,.25); }
+.toast.err { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,.25); }
 
-        .metric-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-top: 0.25rem;
-        }
+/* ── Metrics row ── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
 
-        .voices-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 0.5rem;
-        }
+.metric {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  text-align: center;
+}
 
-        .voice-btn {
-            padding: 0.5rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text);
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: all 0.2s;
-        }
+.metric-val {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent-h);
+  line-height: 1;
+  margin-bottom: 4px;
+}
 
-        .voice-btn:hover,
-        .voice-btn.active {
-            border-color: var(--primary);
-            background: rgba(59, 130, 246, 0.1);
-        }
+.metric-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
 
-        .code-block {
-            background: var(--bg);
-            padding: 1rem;
-            border-radius: 8px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 0.75rem;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
+/* ── Audio player ── */
+.audio-wrap {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+}
 
-        .tabs {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
+audio {
+  width: 100%;
+  height: 36px;
+  accent-color: var(--accent);
+}
 
-        .tab {
-            padding: 0.5rem 1rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
+/* ── Voice chips ── */
+.voice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 
-        .tab.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
-        }
+.voice-chip {
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+.voice-chip:hover { border-color: var(--accent); color: var(--accent-h); }
+.voice-chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-h); }
 
-        .hidden {
-            display: none;
-        }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-preset  { background: var(--accent-dim);  color: var(--accent-h); border: 1px solid rgba(99,102,241,.2); }
+.badge-custom  { background: var(--green-dim);   color: var(--green); border: 1px solid rgba(34,197,94,.2); }
+.badge-mixed   { background: var(--purple-dim);  color: var(--purple); border: 1px solid rgba(168,85,247,.2); }
 
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid var(--border);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
+/* ── Custom voice rows ── */
+.vrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: 6px;
+}
+.vrow-name { flex: 1; font-size: 13px; font-weight: 500; }
+.vrow-actions { display: flex; gap: 6px; }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
+/* ── Upload zone ── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--r);
+  padding: 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  background: var(--bg);
+}
+.drop-zone:hover, .drop-zone.over {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.drop-zone input { display: none; }
+.drop-icon { font-size: 28px; margin-bottom: 8px; opacity: .6; }
+.drop-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.drop-file { margin-top: 8px; font-size: 12px; color: var(--accent-h); font-weight: 500; }
 
-        .error-message {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid var(--error);
-            color: var(--error);
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            font-size: 0.875rem;
-        }
+/* ── Range slider ── */
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.range-row input[type=range] {
+  flex: 1;
+  height: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.range-row input[type=range]:focus { box-shadow: none; }
+.range-val { font-size: 13px; font-weight: 600; color: var(--accent-h); min-width: 36px; text-align: right; }
+.range-hint { font-size: 11px; color: var(--muted); }
 
-        .success-message {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid var(--success);
-            color: var(--success);
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            font-size: 0.875rem;
-        }
+/* ── Code blocks ── */
+.codeblock {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 14px;
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre;
+  color: #e2e8f0;
+  line-height: 1.6;
+}
 
-        footer {
-            text-align: center;
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        }
+/* ── Info callout ── */
+.callout {
+  background: var(--accent-dim);
+  border: 1px solid rgba(99,102,241,.2);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.callout a { color: var(--accent-h); }
 
-        footer a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-    </style>
+/* ── Divider ── */
+hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+.section-head {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* ── Checkbox ── */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+}
+.check-row input[type=checkbox] {
+  width: 15px; height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .content { padding: 16px; }
+  .row-2, .row-3 { grid-template-columns: 1fr; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+}
+</style>
 </head>
-
 <body>
-    <div class="container">
-        <header>
-            <h1>🎙️ Supertonic TTS</h1>
-            <p class="subtitle">OpenAI-compatible Text-to-Speech API Testing Dashboard</p>
-        </header>
 
-        <!-- API Status -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title">API Status</span>
-                <span id="status-badge" class="status-badge status-loading">Checking...</span>
-            </div>
-            <div id="status-details" class="metrics">
-                <div class="metric">
-                    <div id="metric-model" class="metric-value">-</div>
-                    <div class="metric-label">Model</div>
-                </div>
-                <div class="metric">
-                    <div id="metric-voices" class="metric-value">-</div>
-                    <div class="metric-label">Voices</div>
-                </div>
-                <div class="metric">
-                    <div id="metric-providers" class="metric-value">-</div>
-                    <div class="metric-label">Providers</div>
-                </div>
-            </div>
+<div class="shell">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <a class="logo" href="/">
+      <div class="logo-icon">🎙</div>
+      Supertonic TTS
+    </a>
+    <div class="topbar-right">
+      <div class="status-dot" id="dot"></div>
+      <span class="status-label" id="status-label">Connecting…</span>
+      <a class="topbar-link" href="/docs" target="_blank">API Docs</a>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <span class="nav-label">Studio</span>
+    <button class="nav-item active" data-page="generate">
+      <span class="nav-icon">▶</span> Generate
+    </button>
+    <button class="nav-item" data-page="cloning">
+      <span class="nav-icon">✦</span> Voice Cloning
+    </button>
+    <button class="nav-item" data-page="voices">
+      <span class="nav-icon">◎</span> Voices
+    </button>
+    <span class="nav-label" style="margin-top:8px">Developer</span>
+    <button class="nav-item" data-page="api">
+      <span class="nav-icon">&lt;/&gt;</span> API Examples
+    </button>
+  </nav>
+
+  <!-- Content -->
+  <main class="content">
+
+    <!-- GENERATE PAGE -->
+    <div class="page active" id="page-generate">
+      <div class="page-title">Generate Speech</div>
+      <div class="page-sub">Convert text to audio using any voice.</div>
+
+      <div class="card">
+        <div class="field">
+          <label>Text</label>
+          <textarea id="gen-text" placeholder="Enter text to synthesize…">Hello! Welcome to Supertonic TTS — a fast, OpenAI-compatible text-to-speech API.</textarea>
         </div>
 
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('tts')">TTS Generation</button>
-            <button class="tab" onclick="showTab('voices')">Voices</button>
-            <button class="tab" onclick="showTab('api')">API Examples</button>
+        <div class="row-3">
+          <div class="field">
+            <label>Voice</label>
+            <select id="gen-voice">
+              <option value="alloy">alloy</option>
+              <option value="echo">echo</option>
+              <option value="fable">fable</option>
+              <option value="onyx">onyx</option>
+              <option value="nova">nova</option>
+              <option value="shimmer">shimmer</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Format</label>
+            <select id="gen-format">
+              <option value="mp3">MP3</option>
+              <option value="wav">WAV</option>
+              <option value="flac">FLAC</option>
+              <option value="opus">Opus</option>
+              <option value="pcm">PCM</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Language</label>
+            <select id="gen-lang">
+              <option value="en">English</option>
+              <option value="ko">Korean</option>
+              <option value="ja">Japanese</option>
+              <option value="zh">Chinese</option>
+              <option value="de">German</option>
+              <option value="fr">French</option>
+              <option value="es">Spanish</option>
+              <option value="pt">Portuguese</option>
+              <option value="it">Italian</option>
+              <option value="ru">Russian</option>
+              <option value="ar">Arabic</option>
+              <option value="hi">Hindi</option>
+              <option value="nl">Dutch</option>
+              <option value="pl">Polish</option>
+              <option value="sv">Swedish</option>
+              <option value="tr">Turkish</option>
+              <option value="vi">Vietnamese</option>
+              <option value="na">Auto (na)</option>
+            </select>
+          </div>
         </div>
 
-        <!-- TTS Generation Tab -->
-        <div id="tab-tts" class="card">
-            <div class="card-header">
-                <span class="card-title">Generate Speech</span>
+        <div class="row-2">
+          <div class="field">
+            <label>Speed &nbsp;<span id="speed-val" style="color:var(--accent-h);font-weight:600">1.00x</span></label>
+            <div class="range-row">
+              <span class="range-hint">0.25</span>
+              <input type="range" id="gen-speed" min="0.25" max="4" step="0.05" value="1.0"
+                oninput="document.getElementById('speed-val').textContent=parseFloat(this.value).toFixed(2)+'x'">
+              <span class="range-hint">4.00</span>
             </div>
-
-            <div class="form-group">
-                <label for="api-key">API Key (optional)</label>
-                <input type="text" id="api-key" placeholder="Enter your API key or leave empty">
-            </div>
-
-            <div class="form-group">
-                <label for="text-input">Text to Convert</label>
-                <textarea id="text-input"
-                    placeholder="Enter the text you want to convert to speech...">Hello! Welcome to the Supertonic TTS API. This is a test of the text-to-speech system.</textarea>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="voice-select">Voice</label>
-                    <select id="voice-select">
-                        <option value="alloy">Alloy (Neutral)</option>
-                        <option value="echo">Echo (Warm)</option>
-                        <option value="fable">Fable (Expressive)</option>
-                        <option value="onyx">Onyx (Deep)</option>
-                        <option value="nova">Nova (Friendly)</option>
-                        <option value="shimmer">Shimmer (Soft)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="format-select">Format</label>
-                    <select id="format-select">
-                        <option value="mp3">MP3</option>
-                        <option value="wav">WAV</option>
-                        <option value="opus">Opus</option>
-                        <option value="flac">FLAC</option>
-                        <option value="pcm">PCM</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="speed-input">Speed</label>
-                    <input type="number" id="speed-input" value="1.0" min="0.25" max="4.0" step="0.25">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" id="normalize-check" checked> Normalize text
-                </label>
-            </div>
-
-            <div class="btn-group">
-                <button id="generate-btn" class="btn btn-primary" onclick="generateSpeech()">
-                    <span id="btn-text">Generate Speech</span>
-                </button>
-                <button class="btn btn-secondary" onclick="stopAudio()">Stop</button>
-            </div>
-
-            <div id="result-section" class="result-section hidden">
-                <div class="result-label">Generated Audio:</div>
-                <audio id="audio-player" class="audio-player" controls></audio>
-                <div class="metrics">
-                    <div class="metric">
-                        <div id="metric-time" class="metric-value">-</div>
-                        <div class="metric-label">Time (ms)</div>
-                    </div>
-                    <div class="metric">
-                        <div id="metric-chars" class="metric-value">-</div>
-                        <div class="metric-label">Characters</div>
-                    </div>
-                    <div class="metric">
-                        <div id="metric-size" class="metric-value">-</div>
-                        <div class="metric-label">Size (KB)</div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="error-box" class="error-message hidden"></div>
+          </div>
+          <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
+            <label class="check-row">
+              <input type="checkbox" id="gen-normalize" checked>
+              Normalize text
+            </label>
+          </div>
         </div>
 
-        <!-- Voices Tab -->
-        <div id="tab-voices" class="card hidden">
-            <div class="card-header">
-                <span class="card-title">Available Voices</span>
-            </div>
-            <div class="form-group">
-                <label>OpenAI-Compatible Voices</label>
-                <div id="voices-list" class="voices-grid">
-                    <button class="voice-btn active" data-voice="alloy">alloy</button>
-                    <button class="voice-btn" data-voice="echo">echo</button>
-                    <button class="voice-btn" data-voice="fable">fable</button>
-                    <button class="voice-btn" data-voice="onyx">onyx</button>
-                    <button class="voice-btn" data-voice="nova">nova</button>
-                    <button class="voice-btn" data-voice="shimmer">shimmer</button>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Native Styles</label>
-                <div id="native-styles" class="code-block">Loading...</div>
-            </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="gen-btn" onclick="generate()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Generate
+          </button>
+          <button class="btn btn-ghost" onclick="stopAudio()">Stop</button>
         </div>
+      </div>
 
-        <!-- API Examples Tab -->
-        <div id="tab-api" class="card hidden">
-            <div class="card-header">
-                <span class="card-title">API Usage Examples</span>
-            </div>
-
-            <div class="form-group">
-                <label>cURL</label>
-                <div class="code-block">curl -X POST "http://localhost:8800/v1/audio/speech" \
-                    -H "Authorization: Bearer YOUR_API_KEY" \
-                    -H "Content-Type: application/json" \
-                    -d '{
-                    "input": "Hello, world!",
-                    "voice": "alloy",
-                    "response_format": "mp3",
-                    "speed": 1.0
-                    }' \
-                    --output speech.mp3</div>
-            </div>
-
-            <div class="form-group">
-                <label>Python (OpenAI SDK)</label>
-                <div class="code-block">from openai import OpenAI
-
-                    client = OpenAI(
-                    base_url="http://localhost:8800/v1",
-                    api_key="your-api-key"
-                    )
-
-                    response = client.audio.speech.create(
-                    model="tts-1",
-                    voice="alloy",
-                    input="Hello, world!",
-                    response_format="mp3"
-                    )
-
-                    response.stream_to_file("speech.mp3")</div>
-            </div>
-
-            <div class="form-group">
-                <label>JavaScript (fetch)</label>
-                <div class="code-block">const response = await fetch('http://localhost:8800/v1/audio/speech', {
-                    method: 'POST',
-                    headers: {
-                    'Authorization': 'Bearer YOUR_API_KEY',
-                    'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                    input: 'Hello, world!',
-                    voice: 'alloy',
-                    response_format: 'mp3'
-                    })
-                    });
-
-                    const audioBlob = await response.blob();
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    new Audio(audioUrl).play();</div>
-            </div>
+      <div class="card" id="gen-result" style="display:none">
+        <div class="card-title">Result</div>
+        <div class="audio-wrap">
+          <audio id="audio-player" controls></audio>
         </div>
+        <div class="metrics">
+          <div class="metric"><div class="metric-val" id="m-time">—</div><div class="metric-lbl">ms</div></div>
+          <div class="metric"><div class="metric-val" id="m-chars">—</div><div class="metric-lbl">chars</div></div>
+          <div class="metric"><div class="metric-val" id="m-size">—</div><div class="metric-lbl">KB</div></div>
+        </div>
+      </div>
 
-        <footer>
-            <p>
-                <a href="/docs">API Documentation</a> •
-                <a href="https://github.com/supertoneinc/supertonic-py" target="_blank">GitHub</a>
-            </p>
-        </footer>
+      <div class="toast" id="gen-err"></div>
     </div>
 
-    <script>
-        let currentAudio = null;
+    <!-- VOICE CLONING PAGE -->
+    <div class="page" id="page-cloning">
+      <div class="page-title">Voice Cloning</div>
+      <div class="page-sub">Upload a custom voice style or blend two existing voices.</div>
 
-        // Check API health on load
-        async function checkHealth() {
-            try {
-                const response = await fetch('/health');
-                const data = await response.json();
+      <div class="callout">
+        Voice styles are embedding vectors (<code>style_ttl</code> + <code>style_dp</code>) exported from
+        <a href="https://supertonic.supertone.ai/voice_builder" target="_blank">Supertone Voice Builder</a>.
+        Upload your JSON file below, or mix any two voices to create a new one.
+      </div>
 
-                const badge = document.getElementById('status-badge');
-                badge.textContent = data.status === 'healthy' ? 'Healthy' : 'Loading';
-                badge.className = `status-badge ${data.status === 'healthy' ? 'status-healthy' : 'status-loading'}`;
+      <div class="card">
+        <div class="section-head">Upload Voice Style JSON</div>
+        <div class="field">
+          <label>Voice Name</label>
+          <input type="text" id="up-name" placeholder="e.g. my-voice" maxlength="64">
+        </div>
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('up-file').click()">
+          <input type="file" id="up-file" accept=".json,application/json" onchange="onFileSelect(event)">
+          <div class="drop-icon">📂</div>
+          <div class="drop-text">
+            Click or drag a voice style JSON here<br>
+            <code>{"style_ttl": {"dims":[…], "data":[…]}, "style_dp": {…}}</code>
+          </div>
+          <div class="drop-file" id="drop-file-name"></div>
+        </div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn btn-primary" id="up-btn" onclick="uploadVoice()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload Voice
+          </button>
+        </div>
+        <div class="toast" id="up-msg"></div>
+      </div>
 
-                document.getElementById('metric-model').textContent = data.status === 'healthy' ? '✓' : '...';
+      <hr>
 
-                if (data.status === 'healthy') {
-                    await loadVoices();
-                }
-            } catch (error) {
-                const badge = document.getElementById('status-badge');
-                badge.textContent = 'Error';
-                badge.className = 'status-badge status-error';
-            }
-        }
+      <div class="card">
+        <div class="section-head">Mix Two Voices</div>
+        <div class="row-2">
+          <div class="field">
+            <label>Voice A</label>
+            <select id="mix-a">
+              <option value="alloy">alloy</option>
+              <option value="echo">echo</option>
+              <option value="fable">fable</option>
+              <option value="onyx">onyx</option>
+              <option value="nova">nova</option>
+              <option value="shimmer">shimmer</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Voice B</label>
+            <select id="mix-b">
+              <option value="echo">echo</option>
+              <option value="alloy">alloy</option>
+              <option value="fable">fable</option>
+              <option value="onyx">onyx</option>
+              <option value="nova">nova</option>
+              <option value="shimmer">shimmer</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Blend Weight &nbsp;<span style="color:var(--muted);font-weight:400">— 0.0 = all A · 1.0 = all B</span></label>
+          <div class="range-row">
+            <span class="range-hint">A</span>
+            <input type="range" id="mix-w" min="0" max="1" step="0.01" value="0.5"
+              oninput="document.getElementById('mix-wval').textContent=parseFloat(this.value).toFixed(2)">
+            <span class="range-hint">B</span>
+            <span class="range-val" id="mix-wval">0.50</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>New Voice Name</label>
+          <input type="text" id="mix-name" placeholder="e.g. echo-fable-blend" maxlength="64">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="mix-btn" onclick="mixVoices()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Create Mix
+          </button>
+        </div>
+        <div class="toast" id="mix-msg"></div>
+      </div>
 
-        // Load available voices
-        async function loadVoices() {
-            try {
-                const response = await fetch('/voices');
-                const data = await response.json();
+      <hr>
 
-                document.getElementById('metric-voices').textContent = data.voices?.length || 0;
-                document.getElementById('metric-providers').textContent = 'ONNX';
+      <div class="section-head">Custom &amp; Mixed Voices</div>
+      <div id="clone-list">
+        <div style="font-size:13px;color:var(--muted);padding:10px 0">No custom voices yet.</div>
+      </div>
+    </div>
 
-                if (data.native_styles) {
-                    document.getElementById('native-styles').textContent = data.native_styles.join(', ');
-                }
-            } catch (error) {
-                console.error('Failed to load voices:', error);
-            }
-        }
+    <!-- VOICES PAGE -->
+    <div class="page" id="page-voices">
+      <div class="page-title">Voices</div>
+      <div class="page-sub">All available voices — click to use in Generate.</div>
 
-        // Generate speech
-        async function generateSpeech() {
-            const btn = document.getElementById('generate-btn');
-            const btnText = document.getElementById('btn-text');
-            const errorBox = document.getElementById('error-box');
-            const resultSection = document.getElementById('result-section');
+      <div class="card">
+        <div class="card-title">OpenAI-Compatible Presets</div>
+        <div class="voice-grid" id="voice-chips">
+          <div class="voice-chip active" data-v="alloy">alloy</div>
+          <div class="voice-chip" data-v="echo">echo</div>
+          <div class="voice-chip" data-v="fable">fable</div>
+          <div class="voice-chip" data-v="onyx">onyx</div>
+          <div class="voice-chip" data-v="nova">nova</div>
+          <div class="voice-chip" data-v="shimmer">shimmer</div>
+        </div>
+        <hr style="margin:16px 0">
+        <div class="card-title">Descriptions</div>
+        <div style="display:grid;gap:8px;font-size:13px">
+          <div><strong style="color:var(--text)">alloy</strong>   <span style="color:var(--muted)">F1 · Sarah — calm, composed female</span></div>
+          <div><strong style="color:var(--text)">echo</strong>    <span style="color:var(--muted)">M1 · Alex — lively, upbeat male</span></div>
+          <div><strong style="color:var(--text)">fable</strong>   <span style="color:var(--muted)">F2 · Lily — bright, cheerful female</span></div>
+          <div><strong style="color:var(--text)">onyx</strong>    <span style="color:var(--muted)">M2 · James — deep, robust male</span></div>
+          <div><strong style="color:var(--text)">nova</strong>    <span style="color:var(--muted)">F3 · Jessica — professional, broadcast-ready</span></div>
+          <div><strong style="color:var(--text)">shimmer</strong> <span style="color:var(--muted)">M3 · Robert — polished, authoritative male</span></div>
+        </div>
+      </div>
 
-            // Reset UI
-            errorBox.classList.add('hidden');
-            resultSection.classList.add('hidden');
+      <div class="card" id="voices-custom-card" style="display:none">
+        <div class="card-title">Custom &amp; Mixed</div>
+        <div id="voices-custom-list"></div>
+      </div>
 
-            // Get form values
-            const text = document.getElementById('text-input').value.trim();
-            const voice = document.getElementById('voice-select').value;
-            const format = document.getElementById('format-select').value;
-            const speed = parseFloat(document.getElementById('speed-input').value);
-            const normalize = document.getElementById('normalize-check').checked;
-            const apiKey = document.getElementById('api-key').value.trim();
+      <div class="card">
+        <div class="card-title">Native Style Names</div>
+        <div id="native-styles" style="font-size:13px;color:var(--muted)">Loading…</div>
+      </div>
+    </div>
 
-            if (!text) {
-                errorBox.textContent = 'Please enter some text to convert.';
-                errorBox.classList.remove('hidden');
-                return;
-            }
+    <!-- API PAGE -->
+    <div class="page" id="page-api">
+      <div class="page-title">API Examples</div>
+      <div class="page-sub">OpenAI-compatible endpoints.</div>
 
-            // Show loading state
-            btn.disabled = true;
-            btnText.innerHTML = '<span class="loading-spinner"></span> Generating...';
+      <div class="card">
+        <div class="card-title">cURL</div>
+        <div class="codeblock">curl -X POST "http://localhost:8800/v1/audio/speech" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "tts-1",
+    "input": "Hello, world!",
+    "voice": "alloy",
+    "response_format": "mp3",
+    "speed": 1.0,
+    "lang": "en"
+  }' \
+  --output speech.mp3</div>
+      </div>
 
-            const startTime = performance.now();
+      <div class="card">
+        <div class="card-title">Python · OpenAI SDK</div>
+        <div class="codeblock">from openai import OpenAI
 
-            try {
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
+client = OpenAI(
+    base_url="http://localhost:8800/v1",
+    api_key="any"
+)
 
-                if (apiKey) {
-                    headers['Authorization'] = `Bearer ${apiKey}`;
-                }
+response = client.audio.speech.create(
+    model="tts-1",
+    voice="alloy",
+    input="Hello, world!",
+    response_format="mp3"
+)
+response.stream_to_file("speech.mp3")</div>
+      </div>
 
-                const response = await fetch('/v1/audio/speech', {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        model: 'tts-1',
-                        input: text,
-                        voice: voice,
-                        response_format: format,
-                        speed: speed,
-                        normalize: normalize
-                    })
-                });
+      <div class="card">
+        <div class="card-title">JavaScript</div>
+        <div class="codeblock">const res = await fetch('/v1/audio/speech', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    model: 'tts-1',
+    input: 'Hello, world!',
+    voice: 'alloy',
+    response_format: 'mp3',
+    lang: 'en'
+  })
+});
+const blob = await res.blob();
+new Audio(URL.createObjectURL(blob)).play();</div>
+      </div>
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to generate speech');
-                }
+      <div class="card">
+        <div class="card-title">Upload Custom Voice</div>
+        <div class="codeblock">curl -X POST "http://localhost:8800/v1/voices/upload" \
+  -F "name=my-voice" \
+  -F "file=@my_voice_style.json"</div>
+      </div>
 
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
+      <div class="card">
+        <div class="card-title">Mix Voices</div>
+        <div class="codeblock">curl -X POST "http://localhost:8800/v1/voices/mix" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "voice_a": "alloy",
+    "voice_b": "echo",
+    "weight": 0.4,
+    "name": "soft-echo"
+  }'</div>
+      </div>
+    </div>
 
-                // Update audio player
-                const audioPlayer = document.getElementById('audio-player');
-                audioPlayer.src = audioUrl;
-                audioPlayer.play();
-                currentAudio = audioPlayer;
+  </main>
+</div>
 
-                // Show results
-                const endTime = performance.now();
-                const timeMs = Math.round(endTime - startTime);
+<script>
+'use strict';
 
-                document.getElementById('metric-time').textContent = timeMs;
-                document.getElementById('metric-chars').textContent = text.length;
-                document.getElementById('metric-size').textContent = Math.round(audioBlob.size / 1024);
+var customVoices = [];
+var uploadFile   = null;
+var currentAudio = null;
 
-                resultSection.classList.remove('hidden');
+/* Navigation */
+document.querySelectorAll('.nav-item[data-page]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.nav-item').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('page-' + btn.dataset.page).classList.add('active');
+  });
+});
 
-            } catch (error) {
-                errorBox.textContent = error.message;
-                errorBox.classList.remove('hidden');
-            } finally {
-                btn.disabled = false;
-                btnText.textContent = 'Generate Speech';
-            }
-        }
+/* Voice chip -> generate page */
+document.getElementById('voice-chips').addEventListener('click', function(e) {
+  var chip = e.target.closest('.voice-chip');
+  if (!chip) return;
+  document.querySelectorAll('.voice-chip').forEach(function(c) { c.classList.remove('active'); });
+  chip.classList.add('active');
+  document.getElementById('gen-voice').value = chip.dataset.v;
+  document.querySelectorAll('.nav-item').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelector('[data-page="generate"]').classList.add('active');
+  document.getElementById('page-generate').classList.add('active');
+});
 
-        // Stop audio playback
-        function stopAudio() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
-            }
-        }
+/* Health + bootstrap */
+async function boot() {
+  try {
+    var r = await fetch('/health');
+    var d = await r.json();
+    var ok = d.status === 'healthy';
+    document.getElementById('dot').className = 'status-dot ' + (ok ? 'ok' : '');
+    document.getElementById('status-label').textContent = ok ? 'Healthy' : 'Loading…';
+    if (ok) await loadVoices();
+  } catch(e) {
+    document.getElementById('dot').className = 'status-dot err';
+    document.getElementById('status-label').textContent = 'Offline';
+  }
+}
 
-        // Tab switching
-        function showTab(tabName) {
-            // Hide all tabs
-            document.querySelectorAll('[id^="tab-"]').forEach(tab => {
-                tab.classList.add('hidden');
-            });
+async function loadVoices() {
+  try {
+    var r = await fetch('/v1/voices');
+    var d = await r.json();
+    var voices = d.voices || [];
 
-            // Show selected tab
-            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+    var native = voices.filter(function(v) {
+      return v.type === 'preset' && ['alloy','echo','fable','onyx','nova','shimmer'].indexOf(v.id) === -1;
+    });
+    document.getElementById('native-styles').textContent =
+      native.length ? native.map(function(v) { return v.id; }).join(', ') : 'F1–F5, M1–M5 (mapped to OpenAI names)';
 
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
-        }
+    customVoices = voices.filter(function(v) { return v.type !== 'preset'; });
+    renderCustomVoices();
+    rebuildVoiceSelects(voices);
+  } catch(e) {
+    console.error('loadVoices', e);
+  }
+}
 
-        // Voice button selection
-        document.querySelectorAll('.voice-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.voice-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById('voice-select').value = btn.dataset.voice;
-            });
-        });
+function renderCustomVoices() {
+  var cloneList  = document.getElementById('clone-list');
+  var customCard = document.getElementById('voices-custom-card');
+  var customList = document.getElementById('voices-custom-list');
 
-        // Initialize
-        checkHealth();
-        setInterval(checkHealth, 30000); // Check every 30 seconds
-    </script>
+  if (!customVoices.length) {
+    cloneList.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:10px 0">No custom voices yet.</div>';
+    customCard.style.display = 'none';
+    return;
+  }
+
+  var rows = customVoices.map(function(v) {
+    return '<div class="vrow">'
+      + '<span class="vrow-name">' + esc(v.name || v.id) + '</span>'
+      + '<span class="badge badge-' + esc(v.type) + '">' + esc(v.type) + '</span>'
+      + '<div class="vrow-actions">'
+      + '<button class="btn btn-accent-ghost" onclick="useVoice(\'' + esc(v.id) + '\')">Use</button>'
+      + '<button class="btn btn-danger-ghost" onclick="deleteVoice(\'' + esc(v.id) + '\')">Delete</button>'
+      + '</div></div>';
+  }).join('');
+
+  cloneList.innerHTML = rows;
+  customCard.style.display = 'block';
+  customList.innerHTML = rows;
+}
+
+function rebuildVoiceSelects(allVoices) {
+  var preset = ['alloy','echo','fable','onyx','nova','shimmer'];
+  var custom = allVoices.filter(function(v) { return v.type !== 'preset'; });
+  var opts = preset.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
+  if (custom.length) {
+    opts += '<optgroup label="Custom / Mixed">'
+      + custom.map(function(v) { return '<option value="' + esc(v.id) + '">' + esc(v.name || v.id) + '</option>'; }).join('')
+      + '</optgroup>';
+  }
+  ['gen-voice','mix-a','mix-b'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+}
+
+/* Generate */
+async function generate() {
+  var btn    = document.getElementById('gen-btn');
+  var errEl  = document.getElementById('gen-err');
+  var result = document.getElementById('gen-result');
+
+  toast(errEl, '', '');
+  result.style.display = 'none';
+
+  var text  = document.getElementById('gen-text').value.trim();
+  var voice = document.getElementById('gen-voice').value;
+  var fmt   = document.getElementById('gen-format').value;
+  var speed = parseFloat(document.getElementById('gen-speed').value);
+  var lang  = document.getElementById('gen-lang').value;
+  var norm  = document.getElementById('gen-normalize').checked;
+
+  if (!text) { toast(errEl, 'Enter some text first.', 'err'); return; }
+
+  setBtnLoading(btn, true, 'Generating…');
+  var t0 = performance.now();
+
+  try {
+    var res = await fetch('/v1/audio/speech', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model:'tts-1', input:text, voice:voice, response_format:fmt, speed:speed, normalize:norm, lang:lang })
+    });
+    if (!res.ok) { var e = await res.json(); throw new Error(e.detail || 'Failed'); }
+    var blob = await res.blob();
+    var url  = URL.createObjectURL(blob);
+    var ap   = document.getElementById('audio-player');
+    ap.src = url; ap.play();
+    currentAudio = ap;
+    document.getElementById('m-time').textContent  = Math.round(performance.now() - t0);
+    document.getElementById('m-chars').textContent = text.length;
+    document.getElementById('m-size').textContent  = (blob.size / 1024).toFixed(1);
+    result.style.display = 'block';
+  } catch(err) {
+    toast(errEl, err.message, 'err');
+  } finally {
+    setBtnLoading(btn, false, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Generate');
+  }
+}
+
+function stopAudio() {
+  if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
+}
+
+/* Upload */
+function onFileSelect(e) {
+  uploadFile = e.target.files[0];
+  document.getElementById('drop-file-name').textContent = uploadFile ? '✓ ' + uploadFile.name : '';
+}
+
+(function setupDrop() {
+  var zone = document.getElementById('drop-zone');
+  zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', function() { zone.classList.remove('over'); });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault(); zone.classList.remove('over');
+    uploadFile = e.dataTransfer.files[0];
+    if (uploadFile) document.getElementById('drop-file-name').textContent = '✓ ' + uploadFile.name;
+  });
+})();
+
+async function uploadVoice() {
+  var name  = document.getElementById('up-name').value.trim();
+  var msgEl = document.getElementById('up-msg');
+  var btn   = document.getElementById('up-btn');
+
+  if (!name) { toast(msgEl, 'Enter a voice name.', 'err'); return; }
+  if (!uploadFile) { toast(msgEl, 'Select a JSON file.', 'err'); return; }
+
+  setBtnLoading(btn, true, 'Uploading…');
+  try {
+    var fd = new FormData();
+    fd.append('file', uploadFile);
+    fd.append('name', name);
+    var res  = await fetch('/v1/voices/upload', { method:'POST', body:fd });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Upload failed');
+    toast(msgEl, data.message, 'ok');
+    document.getElementById('up-name').value = '';
+    document.getElementById('drop-file-name').textContent = '';
+    uploadFile = null;
+    await loadVoices();
+  } catch(err) {
+    toast(msgEl, err.message, 'err');
+  } finally {
+    setBtnLoading(btn, false, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Voice');
+  }
+}
+
+/* Mix */
+async function mixVoices() {
+  var a     = document.getElementById('mix-a').value;
+  var b     = document.getElementById('mix-b').value;
+  var w     = parseFloat(document.getElementById('mix-w').value);
+  var name  = document.getElementById('mix-name').value.trim();
+  var msgEl = document.getElementById('mix-msg');
+  var btn   = document.getElementById('mix-btn');
+
+  if (!name) { toast(msgEl, 'Enter a name for the mixed voice.', 'err'); return; }
+  if (a === b) { toast(msgEl, 'Choose two different voices.', 'err'); return; }
+
+  setBtnLoading(btn, true, 'Mixing…');
+  try {
+    var res  = await fetch('/v1/voices/mix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_a:a, voice_b:b, weight:w, name:name })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Mix failed');
+    toast(msgEl, data.message, 'ok');
+    document.getElementById('mix-name').value = '';
+    await loadVoices();
+  } catch(err) {
+    toast(msgEl, err.message, 'err');
+  } finally {
+    setBtnLoading(btn, false, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> Create Mix');
+  }
+}
+
+/* Delete */
+async function deleteVoice(id) {
+  if (!confirm('Delete voice "' + id + '"?')) return;
+  try {
+    var res = await fetch('/v1/voices/' + encodeURIComponent(id), { method:'DELETE' });
+    if (!res.ok) { var d = await res.json(); throw new Error(d.detail); }
+    await loadVoices();
+  } catch(err) {
+    alert('Delete failed: ' + err.message);
+  }
+}
+
+function useVoice(id) {
+  document.getElementById('gen-voice').value = id;
+  document.querySelectorAll('.nav-item').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelector('[data-page="generate"]').classList.add('active');
+  document.getElementById('page-generate').classList.add('active');
+}
+
+/* Helpers */
+function toast(el, msg, type) {
+  el.textContent = msg;
+  el.className   = 'toast' + (msg ? ' show ' + type : '');
+}
+
+function setBtnLoading(btn, loading, label) {
+  btn.disabled  = loading;
+  btn.innerHTML = loading ? '<div class="spinner"></div> ' + label : label;
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+boot();
+setInterval(boot, 30000);
+</script>
 </body>
-
 </html>

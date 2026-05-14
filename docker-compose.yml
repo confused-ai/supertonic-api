@@ -9,8 +9,9 @@ services:
       - MAX_WORKERS=4
       - WEB_CONCURRENCY=1
       - HF_HUB_DISABLE_XET=1
+      - HF_HOME=/root/.cache/huggingface
     volumes:
-      - ./db.sqlite3:/app/db.sqlite3
+      - hf_cache:/root/.cache/huggingface
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8800/health"]
@@ -37,3 +38,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+volumes:
+  hf_cache:

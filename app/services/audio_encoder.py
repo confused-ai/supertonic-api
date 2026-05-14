@@ -2,7 +2,7 @@ from io import BytesIO
 from typing import Optional
 import av
 import numpy as np
-from loguru import logger
+from app.core.logging import logger
 
 
 class PipeIO:
@@ -25,7 +25,7 @@ class PipeIO:
         return self.buffer.flush()
 
 
-class StreamingAudioWriter:
+class AudioEncoder:
     """Handles streaming audio format conversions using PyAV for efficient encoding."""
     
     # Codec mappings as class constant
@@ -55,6 +55,9 @@ class StreamingAudioWriter:
             if self.format == 'mp3':
                 container_options = {'write_xing': '0'}
 
+            # libopus only supports specific sample rates; 48000 is the standard.
+            stream_rate = 48000 if self.format == "opus" else self.sample_rate
+
             self.container = av.open(
                 PipeIO(self.output_buffer),
                 mode="w",
@@ -63,7 +66,7 @@ class StreamingAudioWriter:
             )
             self.stream = self.container.add_stream(
                 self.CODEC_MAP[self.format],
-                rate=self.sample_rate,
+                rate=stream_rate,
                 layout="mono" if self.channels == 1 else "stereo",
             )
             

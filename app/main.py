@@ -1,16 +1,13 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-from tortoise import Tortoise
 
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.services.tts import tts_service
-from app.api import routes as tts_routes
-from app.api.auth import routes as auth_routes
-from app.core.database import get_db_config, AuthError
+from app.api.routes import router as api_router
 
 setup_logging()
 
@@ -18,33 +15,18 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown events."""
-    # Startup
-    db_config = get_db_config()
-    await Tortoise.init(config=db_config)
-    await Tortoise.generate_schemas()
-    tts_service.initialize()
+    await tts_service.initialize()
     yield
-    # Shutdown
-    await Tortoise.close_connections()
 
 
 app = FastAPI(
     title="Supertonic TTS API",
-    description="OpenAI-compatible text-to-speech API powered by Supertonic",
-    version="1.0.0",
+    description="OpenAI-compatible text-to-speech API powered by Supertonic 3",
+    version="3.0.0",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
 )
-
-
-@app.exception_handler(AuthError)
-async def auth_error_handler(request, exc: AuthError):
-    """Handle authentication errors."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
 
 
 # CORS middleware
@@ -92,8 +74,7 @@ async def health_check():
 
 
 # Include API routers
-app.include_router(tts_routes.router)
-app.include_router(auth_routes.router)
+app.include_router(api_router)
 
 
 if __name__ == "__main__":

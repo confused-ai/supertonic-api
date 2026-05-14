@@ -7,8 +7,8 @@ python-dotenv
 unidecode
 inflect
 scipy
-tortoise-orm>=0.20.0
 pydantic-settings
+python-multipart
 anyio
 httpx
 av

@@ -1,17 +1,18 @@
+import asyncio
 import math
 import numpy as np
-from loguru import logger
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.inference.base import AudioChunk
-from app.services.streaming_audio_writer import StreamingAudioWriter
+from app.services.audio_encoder import AudioEncoder
 
 
 class AudioNormalizer:
     """Handles audio normalization state for a single stream"""
 
     def __init__(self):
-        self.chunk_trim_ms = settings.gap_trim_ms
+        self.chunk_trim_ms = settings.GAP_TRIM_MS
         self.sample_rate = settings.SAMPLE_RATE
 
     @property
@@ -36,7 +37,7 @@ class AudioNormalizer:
         split_character = chunk_text.strip()
         if split_character:
             split_character = split_character[-1]
-            pad_multiplier = settings.dynamic_gap_trim_padding_char_multiplier.get(
+            pad_multiplier = settings.DYNAMIC_GAP_TRIM_PADDING_CHAR_MULTIPLIER.get(
                 split_character, 1
             )
 
@@ -44,7 +45,7 @@ class AudioNormalizer:
             samples_to_pad_end = max(
                 int(
                     (
-                        settings.dynamic_gap_trim_padding_ms
+                        settings.DYNAMIC_GAP_TRIM_PADDING_MS
                         * self.sample_rate
                         * pad_multiplier
                     )
@@ -90,7 +91,7 @@ class AudioService:
     async def convert_audio(
         audio_chunk: AudioChunk,
         output_format: str,
-        writer: StreamingAudioWriter,
+        writer: AudioEncoder,
         speed: float = 1,
         chunk_text: str = "",
         is_last_chunk: bool = False,
@@ -101,8 +102,7 @@ class AudioService:
         if output_format not in AudioService.SUPPORTED_FORMATS:
             raise ValueError(f"Format {output_format} not supported")
 
-        import asyncio
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _process():
             nonlocal audio_chunk
@@ -111,6 +111,7 @@ class AudioService:
                 inner_normalizer = AudioNormalizer()
                 inner_normalizer.sample_rate = audio_chunk.sample_rate
 
+            # Normalize once here; trim_audio skips its own normalize since we pass the normalizer.
             audio_chunk.audio = inner_normalizer.normalize(audio_chunk.audio)
 
             if trim_audio:
@@ -144,12 +145,12 @@ class AudioService:
         is_last_chunk: bool = False,
         normalizer: AudioNormalizer = None,
     ) -> AudioChunk:
-        """Trim silence from audio chunk edges."""
+        """Trim silence from audio chunk edges. Assumes audio is already normalized to int16."""
         if normalizer is None:
             normalizer = AudioNormalizer()
             normalizer.sample_rate = audio_chunk.sample_rate
-
-        audio_chunk.audio = normalizer.normalize(audio_chunk.audio)
+            # Caller did not pre-normalize — do it now.
+            audio_chunk.audio = normalizer.normalize(audio_chunk.audio)
 
         trimmed_samples = 0
         if len(audio_chunk.audio) > (2 * normalizer.samples_to_trim):
