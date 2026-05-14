@@ -87,7 +87,7 @@ curl -X POST "http://localhost:8800/v1/audio/speech" \
 | ----------------- | ------- | ------- | ------------------------------------------------------ |
 | `model`           | string  | `tts-1` | Accepted for OpenAI compatibility; model is supertonic-3 |
 | `input`           | string  | —       | Text to synthesize (1–4096 chars)                      |
-| `voice`           | string  | `alloy` | Preset: alloy, echo, fable, onyx, nova, shimmer — or custom/mixed voice ID |
+| `voice`           | string  | `alloy` | Preset voice ID (see table below) or custom/mixed voice ID                 |
 | `response_format` | string  | `mp3`   | mp3, opus, aac, flac, wav, pcm                         |
 | `speed`           | float   | `1.0`   | Speed multiplier (0.5–2.0)                             |
 | `normalize`       | boolean | `true`  | Unicode normalization, emoji removal, punctuation fix  |
@@ -101,7 +101,25 @@ curl -X POST "http://localhost:8800/v1/audio/speech" \
 curl "http://localhost:8800/v1/models"
 ```
 
-### List Voices
+### Voices
+
+10 native Supertonic styles exposed via 13 OpenAI-compatible voice IDs:
+
+| Voice ID  | Style | Character                                          |
+|-----------|-------|----------------------------------------------------|
+| `alloy`   | F1    | Calm, clear female                                 |
+| `nova`    | F2    | Bright, professional female                        |
+| `shimmer` | F3    | Soft, expressive female                            |
+| `ash`     | F4    | Energetic, versatile female                        |
+| `ballad`  | F4    | Melodic, smooth female *(shares style with ash)*   |
+| `coral`   | F5    | Airy, warm female                                  |
+| `marin`   | F5    | Gentle, natural female *(shares style with coral)* |
+| `echo`    | M1    | Lively, upbeat male                                |
+| `fable`   | M2    | Warm, narrative male                               |
+| `onyx`    | M3    | Deep, authoritative male                           |
+| `cedar`   | M4    | Measured, resonant male                            |
+| `sage`    | M4    | Calm, steady male *(shares style with cedar)*      |
+| `verse`   | M5    | Dynamic, dramatic male                             |
 
 **GET** `/v1/voices` — full voice list with types (preset / custom / mixed)  
 **GET** `/voices` — legacy alias

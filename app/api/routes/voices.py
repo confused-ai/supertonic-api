@@ -22,12 +22,21 @@ router = APIRouter()
 _VOICE_NAME_RE = re.compile(r'^[\w\- ]+$')
 
 _VOICE_DESCRIPTIONS: dict[str, str] = {
-    "alloy": "F1 \u2014 Sarah, calm female voice",
-    "echo": "M1 \u2014 Alex, lively upbeat male voice",
-    "fable": "F2 \u2014 Lily, bright cheerful female voice",
-    "onyx": "M2 \u2014 James, deep robust male voice",
-    "nova": "F3 \u2014 Jessica, professional announcer-style female",
-    "shimmer": "M3 \u2014 Robert, polished authoritative male voice",
+    # ── Female voices (F1–F5) ──────────────────────────────────────────────
+    "alloy":   "F1 — calm, clear female voice",
+    "nova":    "F2 — bright, professional female voice",
+    "shimmer": "F3 — soft, expressive female voice",
+    "ash":     "F4 — energetic, versatile female voice",
+    "ballad":  "F4 — melodic, smooth female voice (shares style with ash)",
+    "coral":   "F5 — airy, warm female voice",
+    "marin":   "F5 — gentle, natural female voice (shares style with coral)",
+    # ── Male voices (M1–M5) ───────────────────────────────────────────────
+    "echo":    "M1 — lively, upbeat male voice",
+    "fable":   "M2 — warm, narrative male voice",
+    "onyx":    "M3 — deep, authoritative male voice",
+    "cedar":   "M4 — measured, resonant male voice",
+    "sage":    "M4 — calm, steady male voice (shares style with cedar)",
+    "verse":   "M5 — dynamic, dramatic male voice",
 }
 
 
