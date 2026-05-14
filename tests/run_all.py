@@ -137,7 +137,7 @@ def run_unit_tests() -> Suite:
 
     _split("smart_split: short text → 1 chunk",       "Hello world.", min_chunks=1)
     _split("smart_split: long text → multiple chunks",
-           "A " * 200, max_chunk=50, min_chunks=2)
+           "The quick brown fox jumps over the lazy dog. " * 10, max_chunk=50, min_chunks=2)
     _split("smart_split: pause tag yields pause",
            "Hello. [pause:1.0] World.", has_pause=True)
     _split("smart_split: empty string → 0 chunks",    "", min_chunks=0)
