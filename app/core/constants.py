@@ -1,5 +1,7 @@
 """Application-wide constants shared across modules."""
 
+APP_VERSION: str = "3.0.0"
+
 # Audio format → HTTP media type mapping
 MEDIA_TYPES: dict[str, str] = {
     "mp3": "audio/mpeg",

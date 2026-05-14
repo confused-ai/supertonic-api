@@ -255,6 +255,10 @@ class TTSService:
                 output.extend(chunk.output)
         return bytes(output)
 
+    def shutdown(self) -> None:
+        """Drain the synthesis thread pool on application shutdown."""
+        _tts_executor.shutdown(wait=True, cancel_futures=False)
+
 
 # Singleton instance
 tts_service = TTSService()

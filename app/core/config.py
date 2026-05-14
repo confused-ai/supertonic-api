@@ -1,16 +1,22 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    # Server
     LOG_LEVEL: str = "INFO"
     HOST: str = "0.0.0.0"
     PORT: int = 8800
+
+    # Model inference
     MODEL_THREADS: int = 12
     MODEL_INTER_THREADS: int = 12
-    FORCE_PROVIDERS: str = "metal"  # auto, cuda, coreml, cpu, metal
+    FORCE_PROVIDERS: str = "metal"  # auto | cuda | coreml | cpu | metal
     MAX_WORKERS: int = 8
     MAX_CHUNK_LENGTH: int = 300
     SAMPLE_RATE: int = 44100
+    DEFAULT_MODEL_VERSION: str = "v3"
 
     # Audio trimming & gap padding
     GAP_TRIM_MS: int = 100
@@ -24,12 +30,15 @@ class Settings(BaseSettings):
         ":": 1.3,
     }
 
-    # Model version (supertonic-3 is current)
-    DEFAULT_MODEL_VERSION: str = "v3"
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    # Production
+    # CORS: set to specific origins in production, e.g. '["https://myapp.com"]'
+    CORS_ORIGINS: list[str] = ["*"]
+    # Disable /docs + /redoc + /openapi.json in production
+    ENABLE_DOCS: bool = True
+    # Max seconds a synthesis request may run before returning 504
+    REQUEST_TIMEOUT_S: float = 120.0
+    # Per-IP rate limit on all /v1/* routes (format: "<count>/<unit>")
+    RATE_LIMIT: str = "500/minute"
 
 
 settings = Settings()

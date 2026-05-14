@@ -1,13 +1,16 @@
+import time
 from pathlib import Path
 
 from fastapi import APIRouter
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 
+from app.core.constants import APP_VERSION
 from app.services.tts import tts_service
 
 router = APIRouter()
 
 _STATIC_DIR = Path("app/static")
+_START_TIME = time.time()
 
 
 @router.get("/", response_class=FileResponse, include_in_schema=False)
@@ -39,6 +42,11 @@ async def sitemap():
 
 @router.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring."""
-    status = "healthy" if tts_service.model else "initializing"
-    return {"status": status}
+    """Health check for load balancers and monitoring."""
+    model_ready = tts_service.model is not None
+    return {
+        "status": "healthy" if model_ready else "initializing",
+        "version": APP_VERSION,
+        "model": "supertonic-3" if model_ready else None,
+        "uptime_s": round(time.time() - _START_TIME, 1),
+    }

@@ -1,5 +1,5 @@
+import asyncio
 import time
-import traceback
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
@@ -22,41 +22,44 @@ async def generate_speech(data: OpenAIInput):
         raise HTTPException(status_code=503, detail="Model loading")
 
     normalized_text = clean_text(data.input) if data.normalize else data.input
-    logger.debug(f"Normalized text: {normalized_text[:100]}...")
 
     sample_rate = getattr(tts_service.model, "sample_rate", settings.SAMPLE_RATE)
     media_type = MEDIA_TYPES.get(data.response_format, "audio/wav")
     filename = f"speech.{data.response_format}"
 
-    start_time = time.time()
+    start = time.perf_counter()
+    writer = AudioEncoder(format=data.response_format, sample_rate=sample_rate)
     try:
-        writer = AudioEncoder(format=data.response_format, sample_rate=sample_rate)
         try:
-            processed = await tts_service.generate_audio(
-                normalized_text,
-                data.voice,
-                writer,
-                speed=data.speed,
-                output_format=data.response_format,
-                lang=data.lang,
+            processed = await asyncio.wait_for(
+                tts_service.generate_audio(
+                    normalized_text,
+                    data.voice,
+                    writer,
+                    speed=data.speed,
+                    output_format=data.response_format,
+                    lang=data.lang,
+                ),
+                timeout=settings.REQUEST_TIMEOUT_S,
             )
-        finally:
-            writer.close()
-
-        elapsed_ms = (time.time() - start_time) * 1000
-        logger.info(f"TTS Total Time: {elapsed_ms:.2f}ms for {len(data.input)} chars")
-
-        if not processed:
-            raise ValueError("No audio output generated")
-
-        return Response(
-            content=processed,
-            media_type=media_type,
-            headers={"Content-Disposition": f'inline; filename="{filename}"'},
-        )
+        except asyncio.TimeoutError:
+            raise HTTPException(status_code=504, detail="Synthesis timed out")
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error(f"Synthesis error: {exc}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.exception(f"Synthesis error: {exc}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        writer.close()
+
+    if not processed:
+        raise HTTPException(status_code=500, detail="No audio generated")
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info(f"TTS {elapsed_ms:.0f}ms | {len(data.input)} chars | voice={data.voice} | fmt={data.response_format}")
+
+    return Response(
+        content=processed,
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
