@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     SAMPLE_RATE: int = 44100
     DEFAULT_MODEL_VERSION: str = "v3"
 
+    # Synthesis performance
+    # Lower = faster but lower quality. Range 5–12. supertonic-3 default is 8.
+    # 5 = fastest, 8 = balanced (official default), 12 = highest quality.
+    TOTAL_STEPS: int = 8  # Lower = faster, higher = better quality (range 5–12)
+    # Number of text chunks to synthesize concurrently per request.
+    # Should match MAX_WORKERS to keep all thread-pool slots busy.
+    # Set to 1 to disable batching (sequential synthesis).
+    SYNTHESIS_BATCH_SIZE: int = 8
+
     # Audio trimming & gap padding
     GAP_TRIM_MS: int = 100
     DYNAMIC_GAP_TRIM_PADDING_MS: int = 50

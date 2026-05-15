@@ -17,7 +17,7 @@ from app.core.logging import logger
 from app.core.voices import OPENAI_TO_SUPERTONIC
 from app.services.tts import tts_service
 
-router = APIRouter()
+router = APIRouter(tags=["Voices"])
 
 _VOICE_NAME_RE = re.compile(r'^[\w\- ]+$')
 

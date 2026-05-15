@@ -46,19 +46,36 @@ class TTSService:
         return self._semaphore
 
     def _apply_ort_provider_patch(self):
-        """Patch ONNX Runtime InferenceSession to enforce the configured execution provider."""
+        """Patch ONNX Runtime InferenceSession to enforce the configured execution provider
+        and apply session-level performance options (graph optimization, parallel execution)."""
         try:
             _original_init = ort.InferenceSession.__init__
             force_provider = settings.FORCE_PROVIDERS
+            model_threads = settings.MODEL_THREADS
+            inter_threads = settings.MODEL_INTER_THREADS
 
             def _patched_init(session_self, path_or_bytes, *args, **kwargs):
                 available = ort.get_available_providers()
-                kwargs["providers"] = self._select_providers(force_provider, available)
-                logger.debug(f"ORT providers: {kwargs['providers']}")
+                providers = self._select_providers(force_provider, available)
+                kwargs["providers"] = providers
+
+                # Inject session options only if the caller did not supply them.
+                if kwargs.get("sess_options") is None:
+                    opts = ort.SessionOptions()
+                    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+                    # Parallel execution mode is more efficient when intra_op threads > 1.
+                    opts.execution_mode = ort.ExecutionMode.ORT_PARALLEL
+                    if model_threads > 0:
+                        opts.intra_op_num_threads = model_threads
+                    if inter_threads > 0:
+                        opts.inter_op_num_threads = inter_threads
+                    kwargs["sess_options"] = opts
+
+                logger.debug(f"ORT providers: {providers}")
                 _original_init(session_self, path_or_bytes, *args, **kwargs)
 
             ort.InferenceSession.__init__ = _patched_init
-            logger.info(f"ONNX Runtime provider patched. Strategy: {force_provider}")
+            logger.info(f"ONNX Runtime provider patched. Strategy: {force_provider}, graph_opt=ORT_ENABLE_ALL")
         except Exception as e:
             logger.warning(f"Could not patch onnxruntime: {e}")
 
@@ -108,7 +125,29 @@ class TTSService:
         await loop.run_in_executor(_tts_executor, self._ensure_model_loaded)
         # Create the semaphore bound to this running loop.
         self._semaphore = asyncio.Semaphore(settings.MAX_WORKERS)
+        # Warm up the model so the first real request hits a hot ONNX graph.
+        await self._warmup()
         logger.info("TTS Service ready")
+
+    async def _warmup(self):
+        """Synthesize a short silent phrase to populate ORT kernel caches."""
+        try:
+            logger.info("Warming up TTS model...")
+            loop = asyncio.get_running_loop()
+            style = self.get_style("alloy")
+            await loop.run_in_executor(
+                _tts_executor,
+                lambda: self.model.synthesize(
+                    "hello",
+                    voice_style=style,
+                    speed=1.0,
+                    lang="en",
+                    total_steps=settings.TOTAL_STEPS,
+                ),
+            )
+            logger.info("TTS warmup complete")
+        except Exception as e:
+            logger.warning(f"TTS warmup failed (non-fatal): {e}")
 
     def _resolve_style(self, voice_name: str):
         """Resolve voice name to a style object (no caching wrapper)."""
@@ -161,52 +200,96 @@ class TTSService:
             (a * style_a.dp + weight * style_b.dp).astype(np.float32),
         )
 
-    async def _process_chunk(
+    async def _synthesize_one(
         self,
         chunk_text: str,
         style,
         speed: float,
-        writer: AudioEncoder,
-        output_format: str,
-        lang: str = "en",
-        is_last: bool = False,
-        normalizer: AudioNormalizer = None,
-    ):
-        """Synthesize one text chunk and encode to the target format."""
+        lang: str,
+    ) -> np.ndarray | None:
+        """Synthesize one text chunk. Returns raw mono audio array or None.
+
+        Acquires the chunk semaphore to cap concurrent model calls.
+        """
+        if not chunk_text.strip():
+            return None
+
         async with self._chunk_semaphore:
+            loop = asyncio.get_running_loop()
+            logger.debug(f"Synthesizing: textlen={len(chunk_text)}, speed={speed}, lang={lang}")
+
             try:
-                if is_last:
-                    return await AudioService.convert_audio(
-                        AudioChunk(np.array([], dtype=np.float32), sample_rate=self.model.sample_rate),
-                        output_format, writer, speed, "", normalizer=normalizer, is_last_chunk=True,
-                    )
-
-                if not chunk_text.strip():
-                    return None
-
-                loop = asyncio.get_running_loop()
-                logger.debug(f"Synthesizing: textlen={len(chunk_text)}, speed={speed}, lang={lang}")
-
                 wav, _ = await loop.run_in_executor(
                     _tts_executor,
-                    lambda: self.model.synthesize(chunk_text, voice_style=style, speed=speed, lang=lang),
-                )
-
-                logger.debug(f"Synthesized: shape={wav.shape}, dtype={wav.dtype}")
-
-                # supertonic-3 returns (1, num_samples) — take a view into row 0, no copy.
-                if wav.ndim == 2:
-                    wav = wav[0]
-
-                audio_chunk = AudioChunk(audio=wav, sample_rate=self.model.sample_rate, text=chunk_text)
-                return await AudioService.convert_audio(
-                    audio_chunk, output_format, writer, speed, chunk_text,
-                    is_last_chunk=False, normalizer=normalizer,
+                    lambda: self.model.synthesize(
+                        chunk_text, voice_style=style, speed=speed, lang=lang,
+                        total_steps=settings.TOTAL_STEPS,
+                    ),
                 )
             except Exception as e:
-                logger.error(f"Failed to process chunk: {e}")
+                logger.error(f"Failed to synthesize chunk: {e}")
                 logger.error(traceback.format_exc())
                 return None
+
+            logger.debug(f"Synthesized: shape={wav.shape}, dtype={wav.dtype}")
+
+            # supertonic-3 returns (1, num_samples) — take a view into row 0, no copy.
+            if wav.ndim == 2:
+                wav = wav[0]
+
+            return wav
+
+    async def _encode_one(
+        self,
+        wav: np.ndarray | None,
+        chunk_text: str,
+        speed: float,
+        writer: AudioEncoder,
+        output_format: str,
+        normalizer: AudioNormalizer,
+        is_last: bool = False,
+    ) -> AudioChunk | None:
+        """Encode raw audio to target format and return the AudioChunk with .output set."""
+        try:
+            if is_last:
+                return await AudioService.convert_audio(
+                    AudioChunk(np.array([], dtype=np.float32), sample_rate=self.model.sample_rate),
+                    output_format, writer, speed, "", normalizer=normalizer, is_last_chunk=True,
+                )
+
+            if wav is None or len(wav) == 0:
+                return None
+
+            audio_chunk = AudioChunk(audio=wav, sample_rate=self.model.sample_rate, text=chunk_text)
+            return await AudioService.convert_audio(
+                audio_chunk, output_format, writer, speed, chunk_text,
+                is_last_chunk=False, normalizer=normalizer,
+            )
+        except Exception as e:
+            logger.error(f"Failed to encode chunk: {e}")
+            logger.error(traceback.format_exc())
+            return None
+
+    async def _make_pause_chunk(
+        self,
+        pause_duration_s: float,
+        speed: float,
+        writer: AudioEncoder,
+        output_format: str,
+        normalizer: AudioNormalizer,
+    ) -> AudioChunk | None:
+        """Create an encoded silence/pause chunk."""
+        silence = np.zeros(int(pause_duration_s * self.model.sample_rate), dtype=np.int16)
+        pause_chunk = AudioChunk(audio=silence, sample_rate=self.model.sample_rate)
+        try:
+            return await AudioService.convert_audio(
+                pause_chunk, output_format, writer,
+                speed=speed, is_last_chunk=False, trim_audio=False, normalizer=normalizer,
+            )
+        except Exception as e:
+            logger.error(f"Failed to create pause chunk: {e}")
+            logger.error(traceback.format_exc())
+            return None
 
     async def generate_audio_stream(
         self,
@@ -217,36 +300,70 @@ class TTSService:
         output_format: str = "wav",
         lang: str = "en",
     ):
-        """Yield encoded audio chunks as they are produced."""
+        """
+        Yield encoded audio chunks as they are produced.
+
+        Optimizations:
+        - Collects all chunks first (fast string ops), then processes in batches.
+        - Within each batch, text chunks are synthesized concurrently via the thread
+          pool (parallel ONNX inference), then encoded in order.
+        - Pauses are injected at the correct positions between synthesized audio.
+        - Uses TOTAL_STEPS config (lower = faster, higher = better quality).
+        """
         style = self.get_style(voice)  # ensures model loaded
         normalizer = AudioNormalizer()
         normalizer.sample_rate = self.model.sample_rate
+        batch_size = settings.SYNTHESIS_BATCH_SIZE
+
+        # Collect all chunks first (pure string ops — fast, no I/O)
+        chunks: list[tuple[str, float]] = []
+        async for chunk_text, pause_duration_s in smart_split(text, lang=lang):
+            chunks.append((chunk_text, pause_duration_s))
+
+        if not chunks:
+            return
+
         had_chunks = False
 
-        async for chunk_text, pause_duration_s in smart_split(text, lang=lang):
-            if pause_duration_s and pause_duration_s > 0:
-                silence = np.zeros(int(pause_duration_s * self.model.sample_rate), dtype=np.int16)
-                pause_chunk = AudioChunk(audio=silence, sample_rate=self.model.sample_rate)
-                formatted_pause = await AudioService.convert_audio(
-                    pause_chunk, output_format, writer,
-                    speed=speed, is_last_chunk=False, trim_audio=False, normalizer=normalizer,
-                )
-                if formatted_pause.output:
-                    yield formatted_pause
-                had_chunks = True
-            elif chunk_text.strip():
-                processed = await self._process_chunk(
-                    chunk_text, style, speed, writer, output_format,
-                    lang=lang, is_last=False, normalizer=normalizer,
-                )
-                if processed and processed.output:
-                    yield processed
-                had_chunks = True
+        # Process in batches: synthesize text chunks concurrently, encode in order
+        for batch_start in range(0, len(chunks), batch_size):
+            batch = chunks[batch_start:batch_start + batch_size]
 
+            # Kick off parallel synthesis for all text chunks in this batch
+            synth_tasks: dict[int, asyncio.Task] = {}
+            for i, (chunk_text, _) in enumerate(batch):
+                if chunk_text.strip():
+                    task = asyncio.create_task(
+                        self._synthesize_one(chunk_text, style, speed, lang)
+                    )
+                    synth_tasks[i] = task
+
+            # Encode and yield in order (pauses + synthesized audio)
+            for i, (chunk_text, pause_duration_s) in enumerate(batch):
+                # Pause before this text chunk (if any)
+                if pause_duration_s and pause_duration_s > 0:
+                    pause = await self._make_pause_chunk(
+                        pause_duration_s, speed, writer, output_format, normalizer,
+                    )
+                    if pause and pause.output:
+                        yield pause
+                        had_chunks = True
+
+                # Encode synthesized audio for this text chunk
+                if chunk_text.strip() and i in synth_tasks:
+                    wav = await synth_tasks[i]
+                    if wav is not None:
+                        encoded = await self._encode_one(
+                            wav, chunk_text, speed, writer, output_format, normalizer,
+                        )
+                        if encoded and encoded.output:
+                            yield encoded
+                            had_chunks = True
+
+        # Final flush: encode empty chunk to finalize the stream
         if had_chunks:
-            final = await self._process_chunk(
-                "", style, speed, writer, output_format,
-                lang=lang, is_last=True, normalizer=normalizer,
+            final = await self._encode_one(
+                None, "", speed, writer, output_format, normalizer, is_last=True,
             )
             if final and final.output:
                 yield final
@@ -262,7 +379,9 @@ class TTSService:
     ) -> bytes:
         """Collect all streamed chunks and return complete audio bytes."""
         output = bytearray()
-        async for chunk in self.generate_audio_stream(text, voice, writer, speed, output_format, lang):
+        async for chunk in self.generate_audio_stream(
+            text, voice, writer, speed, output_format, lang,
+        ):
             if chunk.output:
                 output.extend(chunk.output)
         return bytes(output)

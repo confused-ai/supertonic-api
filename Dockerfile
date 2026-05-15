@@ -9,15 +9,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create cache directories for HuggingFace
-RUN mkdir -p /root/.cache/huggingface/transformers && \
+# Create cache directories — supertonic stores model at ~/.cache/supertonic3/
+RUN mkdir -p /root/.cache/supertonic3 && \
     mkdir -p /root/.cache/huggingface/hub && \
-    mkdir -p /root/.cache/torch && \
     chmod -R 777 /root/.cache
 
 # Set environment variables for cache
 ENV HF_HOME=/root/.cache/huggingface
-ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/transformers
 ENV HF_HUB_DISABLE_XET=1
 
 COPY requirements.txt .

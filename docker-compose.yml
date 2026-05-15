@@ -6,12 +6,12 @@ services:
       - PORT=8800
       - HOST=0.0.0.0
       - LOG_LEVEL=INFO
-      - MAX_WORKERS=4
-      - WEB_CONCURRENCY=1
+      - MAX_WORKERS=16
+      - WEB_CONCURRENCY=8
       - HF_HUB_DISABLE_XET=1
       - HF_HOME=/root/.cache/huggingface
     volumes:
-      - hf_cache:/root/.cache/huggingface
+      - model_cache:/root/.cache
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8800/health"]
@@ -40,4 +40,4 @@ services:
       retries: 3
 
 volumes:
-  hf_cache:
+  model_cache:

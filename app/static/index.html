@@ -583,12 +583,33 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
           <div class="field">
             <label>Voice</label>
             <select id="gen-voice">
-              <option value="alloy">alloy</option>
-              <option value="echo">echo</option>
-              <option value="fable">fable</option>
-              <option value="onyx">onyx</option>
-              <option value="nova">nova</option>
-              <option value="shimmer">shimmer</option>
+              <optgroup label="OpenAI Compatible">
+                <option value="alloy">alloy</option>
+                <option value="ash">ash</option>
+                <option value="ballad">ballad</option>
+                <option value="cedar">cedar</option>
+                <option value="coral">coral</option>
+                <option value="echo">echo</option>
+                <option value="fable">fable</option>
+                <option value="marin">marin</option>
+                <option value="nova">nova</option>
+                <option value="onyx">onyx</option>
+                <option value="sage">sage</option>
+                <option value="shimmer">shimmer</option>
+                <option value="verse">verse</option>
+              </optgroup>
+              <optgroup label="Native Styles">
+                <option value="F1">F1</option>
+                <option value="F2">F2</option>
+                <option value="F3">F3</option>
+                <option value="F4">F4</option>
+                <option value="F5">F5</option>
+                <option value="M1">M1</option>
+                <option value="M2">M2</option>
+                <option value="M3">M3</option>
+                <option value="M4">M4</option>
+                <option value="M5">M5</option>
+              </optgroup>
             </select>
           </div>
           <div class="field">
@@ -636,10 +657,14 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
               <span class="range-hint">4.00</span>
             </div>
           </div>
-          <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px">
+          <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px;gap:16px">
             <label class="check-row">
               <input type="checkbox" id="gen-normalize" checked>
               Normalize text
+            </label>
+            <label class="check-row" title="Start playback as soon as the first audio chunk arrives">
+              <input type="checkbox" id="gen-streaming" checked>
+              <span>Streaming <span style="color:var(--accent-h);font-size:11px">⚡</span></span>
             </label>
           </div>
         </div>
@@ -650,6 +675,12 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
             Generate
           </button>
           <button class="btn btn-ghost" onclick="stopAudio()">Stop</button>
+        </div>
+
+        <div id="stream-status" style="display:none;margin-top:10px;font-size:12px;color:var(--muted);">
+          <span class="spinner" style="display:inline-block;margin-right:6px;border-top-color:var(--accent-h)"></span>
+          <span id="stream-status-text">Streaming audio…</span>
+          <span id="stream-bytes" style="color:var(--accent-h);font-weight:500;margin-left:8px">0 KB</span>
         </div>
       </div>
 
@@ -765,27 +796,67 @@ hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
     <!-- VOICES PAGE -->
     <div class="page" id="page-voices">
       <div class="page-title">Voices</div>
-      <div class="page-sub">All available voices — click to use in Generate.</div>
-
-      <div class="card">
+      <div class="page-sub">All available voices — click to use in Generate.</div>        <div class="card">
         <div class="card-title">OpenAI-Compatible Presets</div>
         <div class="voice-grid" id="voice-chips">
           <div class="voice-chip active" data-v="alloy">alloy</div>
+          <div class="voice-chip" data-v="ash">ash</div>
+          <div class="voice-chip" data-v="ballad">ballad</div>
+          <div class="voice-chip" data-v="cedar">cedar</div>
+          <div class="voice-chip" data-v="coral">coral</div>
           <div class="voice-chip" data-v="echo">echo</div>
           <div class="voice-chip" data-v="fable">fable</div>
-          <div class="voice-chip" data-v="onyx">onyx</div>
+          <div class="voice-chip" data-v="marin">marin</div>
           <div class="voice-chip" data-v="nova">nova</div>
+          <div class="voice-chip" data-v="onyx">onyx</div>
+          <div class="voice-chip" data-v="sage">sage</div>
           <div class="voice-chip" data-v="shimmer">shimmer</div>
+          <div class="voice-chip" data-v="verse">verse</div>
         </div>
+
+        <div class="card-title" style="margin-top:20px">Native Styles</div>
+        <div class="voice-grid" id="native-chips">
+          <div class="voice-chip" data-v="F1">F1</div>
+          <div class="voice-chip" data-v="F2">F2</div>
+          <div class="voice-chip" data-v="F3">F3</div>
+          <div class="voice-chip" data-v="F4">F4</div>
+          <div class="voice-chip" data-v="F5">F5</div>
+          <div class="voice-chip" data-v="M1">M1</div>
+          <div class="voice-chip" data-v="M2">M2</div>
+          <div class="voice-chip" data-v="M3">M3</div>
+          <div class="voice-chip" data-v="M4">M4</div>
+          <div class="voice-chip" data-v="M5">M5</div>
+        </div>
+
         <hr style="margin:16px 0">
         <div class="card-title">Descriptions</div>
-        <div style="display:grid;gap:8px;font-size:13px">
-          <div><strong style="color:var(--text)">alloy</strong>   <span style="color:var(--muted)">F1 · Sarah — calm, composed female</span></div>
-          <div><strong style="color:var(--text)">echo</strong>    <span style="color:var(--muted)">M1 · Alex — lively, upbeat male</span></div>
-          <div><strong style="color:var(--text)">fable</strong>   <span style="color:var(--muted)">F2 · Lily — bright, cheerful female</span></div>
-          <div><strong style="color:var(--text)">onyx</strong>    <span style="color:var(--muted)">M2 · James — deep, robust male</span></div>
-          <div><strong style="color:var(--text)">nova</strong>    <span style="color:var(--muted)">F3 · Jessica — professional, broadcast-ready</span></div>
-          <div><strong style="color:var(--text)">shimmer</strong> <span style="color:var(--muted)">M3 · Robert — polished, authoritative male</span></div>
+        <div style="display:grid;gap:6px;font-size:13px">
+          <div><strong style="color:var(--text)">alloy</strong>   <span style="color:var(--muted)">F1 — calm, clear female voice</span></div>
+          <div><strong style="color:var(--text)">ash</strong>     <span style="color:var(--muted)">F4 — energetic, versatile female voice</span></div>
+          <div><strong style="color:var(--text)">ballad</strong>  <span style="color:var(--muted)">F4 — melodic, smooth female voice (shares style with ash)</span></div>
+          <div><strong style="color:var(--text)">cedar</strong>   <span style="color:var(--muted)">M4 — measured, resonant male voice</span></div>
+          <div><strong style="color:var(--text)">coral</strong>   <span style="color:var(--muted)">F5 — airy, warm female voice</span></div>
+          <div><strong style="color:var(--text)">echo</strong>    <span style="color:var(--muted)">M1 — lively, upbeat male voice</span></div>
+          <div><strong style="color:var(--text)">fable</strong>   <span style="color:var(--muted)">M2 — warm, narrative male voice</span></div>
+          <div><strong style="color:var(--text)">marin</strong>   <span style="color:var(--muted)">F5 — gentle, natural female voice (shares style with coral)</span></div>
+          <div><strong style="color:var(--text)">nova</strong>    <span style="color:var(--muted)">F2 — bright, professional female voice</span></div>
+          <div><strong style="color:var(--text)">onyx</strong>    <span style="color:var(--muted)">M3 — deep, authoritative male voice</span></div>
+          <div><strong style="color:var(--text)">sage</strong>    <span style="color:var(--muted)">M4 — calm, steady male voice (shares style with cedar)</span></div>
+          <div><strong style="color:var(--text)">shimmer</strong> <span style="color:var(--muted)">F3 — soft, expressive female voice</span></div>
+          <div><strong style="color:var(--text)">verse</strong>   <span style="color:var(--muted)">M5 — dynamic, dramatic male voice</span></div>
+          <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+            <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Native Styles</span>
+          </div>
+          <div><strong style="color:var(--text)">F1</strong> <span style="color:var(--muted)">female voice (same as alloy)</span></div>
+          <div><strong style="color:var(--text)">F2</strong> <span style="color:var(--muted)">female voice (same as nova)</span></div>
+          <div><strong style="color:var(--text)">F3</strong> <span style="color:var(--muted)">female voice (same as shimmer)</span></div>
+          <div><strong style="color:var(--text)">F4</strong> <span style="color:var(--muted)">female voice (same as ash / ballad)</span></div>
+          <div><strong style="color:var(--text)">F5</strong> <span style="color:var(--muted)">female voice (same as coral / marin)</span></div>
+          <div><strong style="color:var(--text)">M1</strong> <span style="color:var(--muted)">male voice (same as echo)</span></div>
+          <div><strong style="color:var(--text)">M2</strong> <span style="color:var(--muted)">male voice (same as fable)</span></div>
+          <div><strong style="color:var(--text)">M3</strong> <span style="color:var(--muted)">male voice (same as onyx)</span></div>
+          <div><strong style="color:var(--text)">M4</strong> <span style="color:var(--muted)">male voice (same as cedar / sage)</span></div>
+          <div><strong style="color:var(--text)">M5</strong> <span style="color:var(--muted)">male voice (same as verse)</span></div>
         </div>
       </div>
 
@@ -884,6 +955,17 @@ new Audio(URL.createObjectURL(blob)).play();</div>
 var customVoices = [];
 var uploadFile   = null;
 var currentAudio = null;
+var streamController = null;  // AbortController for fetch
+
+/* ── MediaSource MIME types ── */
+var MEDIA_MIME = {
+  mp3:  'audio/mpeg',
+  wav:  'audio/wav; codecs="pcm"',
+  flac: 'audio/flac',
+  opus: 'audio/ogg; codecs="opus"',
+  aac:  'audio/aac',
+  pcm:  null
+};
 
 /* Navigation */
 document.querySelectorAll('.nav-item[data-page]').forEach(function(btn) {
@@ -896,8 +978,7 @@ document.querySelectorAll('.nav-item[data-page]').forEach(function(btn) {
 });
 
 /* Voice chip -> generate page */
-document.getElementById('voice-chips').addEventListener('click', function(e) {
-  var chip = e.target.closest('.voice-chip');
+function onChipClick(chip) {
   if (!chip) return;
   document.querySelectorAll('.voice-chip').forEach(function(c) { c.classList.remove('active'); });
   chip.classList.add('active');
@@ -906,6 +987,13 @@ document.getElementById('voice-chips').addEventListener('click', function(e) {
   document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
   document.querySelector('[data-page="generate"]').classList.add('active');
   document.getElementById('page-generate').classList.add('active');
+}
+
+document.getElementById('voice-chips').addEventListener('click', function(e) {
+  onChipClick(e.target.closest('.voice-chip'));
+});
+document.getElementById('native-chips').addEventListener('click', function(e) {
+  onChipClick(e.target.closest('.voice-chip'));
 });
 
 /* Health + bootstrap */
@@ -929,8 +1017,9 @@ async function loadVoices() {
     var d = await r.json();
     var voices = d.voices || [];
 
+    var ALL_PRESETS = ['alloy','nova','shimmer','ash','ballad','coral','marin','echo','fable','onyx','cedar','sage','verse'];
     var native = voices.filter(function(v) {
-      return v.type === 'preset' && ['alloy','echo','fable','onyx','nova','shimmer'].indexOf(v.id) === -1;
+      return v.type === 'preset' && ALL_PRESETS.indexOf(v.id) === -1;
     });
     document.getElementById('native-styles').textContent =
       native.length ? native.map(function(v) { return v.id; }).join(', ') : 'F1–F5, M1–M5 (mapped to OpenAI names)';
@@ -970,9 +1059,17 @@ function renderCustomVoices() {
 }
 
 function rebuildVoiceSelects(allVoices) {
-  var preset = ['alloy','echo','fable','onyx','nova','shimmer'];
+  var OPENAI_VOICES = ['alloy','ash','ballad','cedar','coral','echo','fable','marin','nova','onyx','sage','shimmer','verse'];
+  var NATIVE_STYLES = ['F1','F2','F3','F4','F5','M1','M2','M3','M4','M5'];
   var custom = allVoices.filter(function(v) { return v.type !== 'preset'; });
-  var opts = preset.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
+
+  var opts = '<optgroup label="OpenAI Compatible">'
+    + OPENAI_VOICES.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('')
+    + '</optgroup>'
+    + '<optgroup label="Native Styles">'
+    + NATIVE_STYLES.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('')
+    + '</optgroup>';
+
   if (custom.length) {
     opts += '<optgroup label="Custom / Mixed">'
       + custom.map(function(v) { return '<option value="' + esc(v.id) + '">' + esc(v.name || v.id) + '</option>'; }).join('')
@@ -984,14 +1081,16 @@ function rebuildVoiceSelects(allVoices) {
   });
 }
 
-/* Generate */
+/* ── Generate (streaming + non-streaming) ── */
 async function generate() {
   var btn    = document.getElementById('gen-btn');
   var errEl  = document.getElementById('gen-err');
   var result = document.getElementById('gen-result');
+  var streamStatus = document.getElementById('stream-status');
 
   toast(errEl, '', '');
   result.style.display = 'none';
+  streamStatus.style.display = 'none';
 
   var text  = document.getElementById('gen-text').value.trim();
   var voice = document.getElementById('gen-voice').value;
@@ -999,8 +1098,26 @@ async function generate() {
   var speed = parseFloat(document.getElementById('gen-speed').value);
   var lang  = document.getElementById('gen-lang').value;
   var norm  = document.getElementById('gen-normalize').checked;
+  var streaming = document.getElementById('gen-streaming').checked;
 
   if (!text) { toast(errEl, 'Enter some text first.', 'err'); return; }
+
+  // Decide which mode to use
+  var mime = MEDIA_MIME[fmt];
+  var canStream = streaming && fmt !== 'pcm' && mime && window.MediaSource && MediaSource.isTypeSupported(mime);
+
+  if (canStream) {
+    await generateStreaming(text, voice, fmt, speed, lang, norm, mime);
+  } else {
+    await generateOnce(text, voice, fmt, speed, lang, norm);
+  }
+}
+
+/* Non-streaming — fetch full audio, then play */
+async function generateOnce(text, voice, fmt, speed, lang, norm) {
+  var btn    = document.getElementById('gen-btn');
+  var errEl  = document.getElementById('gen-err');
+  var result = document.getElementById('gen-result');
 
   setBtnLoading(btn, true, 'Generating…');
   var t0 = performance.now();
@@ -1017,10 +1134,7 @@ async function generate() {
     var ap   = document.getElementById('audio-player');
     ap.src = url; ap.play();
     currentAudio = ap;
-    document.getElementById('m-time').textContent  = Math.round(performance.now() - t0);
-    document.getElementById('m-chars').textContent = text.length;
-    document.getElementById('m-size').textContent  = (blob.size / 1024).toFixed(1);
-    result.style.display = 'block';
+    showResult(text, Math.round(performance.now() - t0), blob.size);
   } catch(err) {
     toast(errEl, err.message, 'err');
   } finally {
@@ -1028,8 +1142,179 @@ async function generate() {
   }
 }
 
+/* Streaming — use MediaSource for progressive playback */
+async function generateStreaming(text, voice, fmt, speed, lang, norm, mime) {
+  var btn       = document.getElementById('gen-btn');
+  var errEl     = document.getElementById('gen-err');
+  var result    = document.getElementById('gen-result');
+  var statusEl  = document.getElementById('stream-status');
+  var statusTxt = document.getElementById('stream-status-text');
+  var bytesEl   = document.getElementById('stream-bytes');
+  var ap        = document.getElementById('audio-player');
+
+  setBtnLoading(btn, true, 'Starting…');
+  statusEl.style.display = 'block';
+  statusTxt.textContent = 'Connecting…';
+  bytesEl.textContent = '0 KB';
+  result.style.display = 'none';
+
+  var t0 = performance.now();
+  streamController = new AbortController();
+  var totalBytes = 0;
+  var lastChunkTime = performance.now();
+
+  try {
+    // 1. Start the fetch
+    var res = await fetch('/v1/audio/speech/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model:'tts-1', input:text, voice:voice, response_format:fmt, speed:speed, normalize:norm, lang:lang }),
+      signal: streamController.signal
+    });
+    if (!res.ok) { var e = await res.json(); throw new Error(e.detail || 'Failed'); }
+    if (!res.body) throw new Error('ReadableStream not supported');
+
+    // 2. Set up MediaSource
+    var mediaSource = new MediaSource();
+    var audioUrl = URL.createObjectURL(mediaSource);
+    ap.src = audioUrl;
+    currentAudio = ap;
+
+    // 3. Wait for MediaSource to open, then start streaming
+    var playbackStarted = false;
+    var appendFinished = new Promise(function(resolve, reject) {
+      var sourceOpenHandler = async function() {
+        try {
+          var sourceBuffer = mediaSource.addSourceBuffer(mime);
+          var reader = res.body.getReader();
+          statusTxt.textContent = 'Streaming…';
+
+          while (true) {
+            var readResult = await reader.read();
+            if (readResult.done) break;
+
+            totalBytes += readResult.value.length;
+            bytesEl.textContent = (totalBytes / 1024).toFixed(1) + ' KB';
+
+            // Wait if SourceBuffer is busy
+            if (sourceBuffer.updating) {
+              await new Promise(function(r) {
+                sourceBuffer.addEventListener('updateend', r, { once: true });
+              });
+            }
+
+            // Handle quota gracefully by removing old buffered data
+            try {
+              sourceBuffer.appendBuffer(readResult.value);
+            } catch(quotaErr) {
+              if (quotaErr.name === 'QuotaExceededError' && sourceBuffer.buffered.length > 0) {
+                // Remove oldest buffered range to free space
+                sourceBuffer.remove(0, sourceBuffer.buffered.end(0));
+                await new Promise(function(r) {
+                  sourceBuffer.addEventListener('updateend', r, { once: true });
+                });
+                sourceBuffer.appendBuffer(readResult.value);
+              } else {
+                throw quotaErr;
+              }
+            }
+
+            // Start playback after first chunk
+            if (!playbackStarted) {
+              playbackStarted = true;
+              setBtnLoading(btn, false, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Generate');
+              ap.play().catch(function(){});
+              showResult(text, Math.round(performance.now() - t0), 0);
+            }
+          }
+
+          // Wait for final SourceBuffer flush
+          if (sourceBuffer.updating) {
+            await new Promise(function(r) {
+              sourceBuffer.addEventListener('updateend', r, { once: true });
+            });
+          }
+
+          mediaSource.endOfStream();
+          statusEl.style.display = 'none';
+
+          // Update final metrics
+          document.getElementById('m-time').textContent = Math.round(performance.now() - t0);
+          document.getElementById('m-size').textContent = (totalBytes / 1024).toFixed(1);
+          resolve();
+        } catch(err) {
+          reject(err);
+        }
+      };
+
+      // Handle race: MediaSource may already be open
+      if (mediaSource.readyState === 'open') {
+        sourceOpenHandler();
+      } else {
+        mediaSource.addEventListener('sourceopen', sourceOpenHandler, { once: true });
+      }
+
+      mediaSource.addEventListener('error', function() {
+        reject(new Error('MediaSource error'));
+      }, { once: true });
+    });
+
+    // Button safety: if no chunks arrive, reset after timeout
+    var safetyTimer = setTimeout(function() {
+      if (!playbackStarted) {
+        statusTxt.textContent = 'No audio generated';
+        setBtnLoading(btn, false, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Generate');
+      }
+    }, 120000);
+
+    appendFinished = appendFinished.then(function() {
+      clearTimeout(safetyTimer);
+      setBtnLoading(btn, false, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Generate');
+    }, function(err) {
+      clearTimeout(safetyTimer);
+      setBtnLoading(btn, false, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Generate');
+      throw err;
+    });
+
+    await appendFinished;
+
+  } catch(err) {
+    if (err.name === 'AbortError') return;
+    statusEl.style.display = 'none';
+    toast(errEl, err.message, 'err');
+    setBtnLoading(btn, false, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Generate');
+  }
+}
+
+function showResult(text, elapsedMs, bytes) {
+  var result = document.getElementById('gen-result');
+  result.style.display = 'block';
+  document.getElementById('m-time').textContent  = elapsedMs;
+  document.getElementById('m-chars').textContent = text.length;
+  document.getElementById('m-size').textContent  = (bytes / 1024).toFixed(1);
+}
+
 function stopAudio() {
-  if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; }
+  // Abort any in-flight stream
+  if (streamController) {
+    streamController.abort();
+    streamController = null;
+  }
+  // Stop playback & release blob URLs
+  if (currentAudio) {
+    if (currentAudio.src && currentAudio.src.startsWith('blob:')) {
+      URL.revokeObjectURL(currentAudio.src);
+    }
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio.src = '';
+  }
+  // Hide streaming status
+  var st = document.getElementById('stream-status');
+  if (st) st.style.display = 'none';
+  // Reset button
+  var btn = document.getElementById('gen-btn');
+  if (btn) setBtnLoading(btn, false, '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Generate');
 }
 
 /* Upload */
