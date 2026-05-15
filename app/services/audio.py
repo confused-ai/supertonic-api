@@ -121,11 +121,12 @@ class AudioNormalizer:
 
     def normalize(self, audio_data: np.ndarray) -> np.ndarray:
         """Normalize audio to int16 format with optional scipy-powered RMS/peak normalization."""
-        # Convert to int16 first
+        if len(audio_data) == 0:
+            return audio_data
+
         if audio_data.dtype != np.int16:
             audio_data = np.clip(audio_data * 32767, -32768, 32767).astype(np.int16)
 
-        # Apply scipy-based loudness normalization if configured
         if HAS_SCIPY and (settings.AUDIO_RMS_TARGET is not None or settings.AUDIO_PEAK_TARGET is not None):
             audio_data = self._apply_scipy_normalization(audio_data)
 

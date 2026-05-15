@@ -9,6 +9,9 @@ import asyncio
 import time
 import sys
 import os
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Silence noisy loggers before importing app modules
 os.environ["LOG_LEVEL"] = "ERROR"
