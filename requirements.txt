@@ -2,15 +2,9 @@ fastapi
 uvicorn[standard]
 supertonic
 numpy
-soundfile
-python-dotenv
-unidecode
-inflect
-scipy
 pydantic-settings
 python-multipart
-anyio
-httpx
 av
 loguru
-pydub
+httpx
+scipy

@@ -26,14 +26,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the app directory
 COPY app/ ./app/
 
-# Environment variables
-ENV PORT=8800
-ENV HOST=0.0.0.0
-ENV MODEL_THREADS=1 
-ENV MAX_WORKERS=4
-ENV TIMEOUT=120
-ENV PYTHONPATH=/app
-
 EXPOSE 8800
 
 # Start with Uvicorn

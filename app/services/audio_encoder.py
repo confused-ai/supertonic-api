@@ -75,6 +75,13 @@ class AudioEncoder:
         else:
             raise ValueError(f"Unsupported format: {self.format}")
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        return False
+
     def close(self):
         """Close and cleanup resources."""
         if hasattr(self, "output_buffer") and self.output_buffer:

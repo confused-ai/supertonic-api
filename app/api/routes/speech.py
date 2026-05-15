@@ -21,7 +21,7 @@ async def generate_speech(data: OpenAIInput):
     if not tts_service.model:
         raise HTTPException(status_code=503, detail="Model loading")
 
-    normalized_text = clean_text(data.input) if data.normalize else data.input
+    normalized_text = clean_text(data.input, lang=data.lang) if data.normalize else data.input
 
     sample_rate = getattr(tts_service.model, "sample_rate", settings.SAMPLE_RATE)
     media_type = MEDIA_TYPES.get(data.response_format, "audio/wav")
@@ -44,11 +44,9 @@ async def generate_speech(data: OpenAIInput):
             )
         except asyncio.TimeoutError:
             raise HTTPException(status_code=504, detail="Synthesis timed out")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception(f"Synthesis error: {exc}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        except Exception as exc:
+            logger.exception(f"Synthesis error: {exc}")
+            raise HTTPException(status_code=500, detail="Internal server error")
     finally:
         writer.close()
 

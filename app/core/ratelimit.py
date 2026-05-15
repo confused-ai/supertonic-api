@@ -29,11 +29,20 @@ def _parse_rate(rate_str: str) -> tuple[int, float]:
 class _SlidingWindowLimiter:
     """Thread-safe sliding-window counter, keyed by client identifier."""
 
-    def __init__(self, max_requests: int, window_s: float) -> None:
+    def __init__(self, max_requests: int, window_s: float, cleanup_interval: int = 100) -> None:
         self._max = max_requests
         self._window = window_s
         self._store: dict[str, deque[float]] = defaultdict(deque)
         self._lock = Lock()
+        self._requests_since_cleanup = 0
+        self._cleanup_interval = cleanup_interval
+
+    def _cleanup_stale(self) -> None:
+        """Remove entries with no recent activity to prevent memory leaks."""
+        cutoff = time.monotonic() - self._window * 2
+        stale_keys = [k for k, q in self._store.items() if not q or q[-1] < cutoff]
+        for k in stale_keys:
+            del self._store[k]
 
     def is_allowed(self, key: str) -> bool:
         now = time.monotonic()
@@ -45,6 +54,11 @@ class _SlidingWindowLimiter:
             if len(q) >= self._max:
                 return False
             q.append(now)
+            # Periodic cleanup to prevent unbounded growth
+            self._requests_since_cleanup += 1
+            if self._requests_since_cleanup >= self._cleanup_interval:
+                self._cleanup_stale()
+                self._requests_since_cleanup = 0
             return True
 
 

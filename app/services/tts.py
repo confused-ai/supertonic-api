@@ -3,6 +3,7 @@ import os
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 
 import numpy as np
 import onnxruntime as ort
@@ -32,7 +33,6 @@ class TTSService:
 
     def __init__(self):
         self.model = None
-        self._style_cache: dict = {}
         self._custom_voices: dict = {}
         self._load_lock = threading.Lock()
         # Created lazily inside the running event loop (asyncio.Semaphore is loop-bound).
@@ -99,7 +99,7 @@ class TTSService:
                 intra_op_num_threads=intra,
                 inter_op_num_threads=inter,
             )
-            self._style_cache.clear()
+            self.clear_style_cache()
             logger.info(f"{MODEL_NAME} loaded. sample_rate={self.model.sample_rate}")
 
     async def initialize(self):
@@ -110,23 +110,35 @@ class TTSService:
         self._semaphore = asyncio.Semaphore(settings.MAX_WORKERS)
         logger.info("TTS Service ready")
 
-    def get_style(self, voice_name: str):
-        """Resolve voice name to a style object, with in-process caching."""
+    def _resolve_style(self, voice_name: str):
+        """Resolve voice name to a style object (no caching wrapper)."""
         self._ensure_model_loaded()
         if voice_name in self._custom_voices:
             return self._custom_voices[voice_name]
-        cached = self._style_cache.get(voice_name)
-        if cached is not None:
-            return cached
         available = getattr(self.model, "voice_style_names", [])
         target = (
             voice_name
             if voice_name in available
             else OPENAI_TO_SUPERTONIC.get(voice_name, available[0] if available else "F1")
         )
-        style = self.model.get_voice_style(voice_name=target)
-        self._style_cache[voice_name] = style
-        return style
+        return self.model.get_voice_style(voice_name=target)
+
+    def get_style(self, voice_name: str):
+        """Resolve voice name to a style object, with LRU caching."""
+        # Custom voices are not LRU-cached since they're explicitly managed
+        if voice_name in self._custom_voices:
+            return self._custom_voices[voice_name]
+        # Use lru_cache via a convenience wrapper
+        return self._get_or_load_style(voice_name)
+
+    @lru_cache(maxsize=64)
+    def _get_or_load_style(self, voice_name: str):
+        """Cached style resolution — LRU eviction after 64 entries."""
+        return self._resolve_style(voice_name)
+
+    def clear_style_cache(self):
+        """Clear the LRU style cache (called on model reload)."""
+        self._get_or_load_style.cache_clear()
 
     def register_custom_voice(self, voice_id: str, style) -> None:
         self._custom_voices[voice_id] = style
@@ -211,7 +223,7 @@ class TTSService:
         normalizer.sample_rate = self.model.sample_rate
         had_chunks = False
 
-        async for chunk_text, pause_duration_s in smart_split(text):
+        async for chunk_text, pause_duration_s in smart_split(text, lang=lang):
             if pause_duration_s and pause_duration_s > 0:
                 silence = np.zeros(int(pause_duration_s * self.model.sample_rate), dtype=np.int16)
                 pause_chunk = AudioChunk(audio=silence, sample_rate=self.model.sample_rate)

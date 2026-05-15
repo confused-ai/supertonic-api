@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     # Per-IP rate limit on all /v1/* routes (format: "<count>/<unit>")
     RATE_LIMIT: str = "500/minute"
 
+    # Language-aware normalization
+    # Supported languages for text normalization: en, fr, de, es, it, pt, nl, pl, sv, da, no, fi, cs, ro, hu, el, ru, uk, ar, hi, zh, ja, ko, th, vi, tr, id, ms, tl, na
+    # Target RMS level for scipy-based audio normalization (None to disable)
+    AUDIO_RMS_TARGET: float | None = None  # e.g. 0.15 for -16 dB LUFS roughly
+    # Target peak level for scipy-based audio normalization (None to disable)
+    AUDIO_PEAK_TARGET: float | None = 0.95  # scale so max sample = 0.95 * max_int
+
 
 settings = Settings()
 

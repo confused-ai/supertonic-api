@@ -1,11 +1,18 @@
 import asyncio
 import math
+
 import numpy as np
 
 from app.core.config import settings
 from app.core.logging import logger
 from app.inference.base import AudioChunk
 from app.services.audio_encoder import AudioEncoder
+
+try:
+    import scipy  # noqa: F401
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
 
 
 class AudioNormalizer:
@@ -22,6 +29,43 @@ class AudioNormalizer:
     @property
     def samples_to_pad_start(self) -> int:
         return int(50 * self.sample_rate / 1000)
+
+    def _apply_scipy_normalization(self, audio_data: np.ndarray) -> np.ndarray:
+        """Apply scipy-powered RMS and/or peak normalization to the audio data.
+
+        Order: RMS normalization first (adjusts overall loudness), then peak
+        limiting (ensures no clipping). This guarantees peaks stay within bounds.
+        """
+        if not HAS_SCIPY:
+            return audio_data
+
+        # Ensure float for processing
+        if audio_data.dtype == np.int16:
+            audio_float = audio_data.astype(np.float32) / 32767.0
+        else:
+            audio_float = audio_data.astype(np.float32)
+
+        peak_target = settings.AUDIO_PEAK_TARGET
+        rms_target = settings.AUDIO_RMS_TARGET
+
+        # 1. RMS normalization first (adjusts overall loudness)
+        if rms_target is not None and rms_target > 0:
+            current_rms = np.sqrt(np.mean(audio_float ** 2))
+            if current_rms > 1e-10:
+                gain = rms_target / current_rms
+                # Limit gain to avoid excessive amplification (max 6 dB)
+                gain = min(gain, 2.0)
+                audio_float = audio_float * gain
+
+        # 2. Peak normalization last (ensures no clipping)
+        if peak_target is not None and peak_target > 0:
+            current_peak = np.max(np.abs(audio_float))
+            if current_peak > peak_target:
+                gain = peak_target / current_peak
+                audio_float = audio_float * gain
+
+        # Clip to valid range and convert back to int16
+        return np.clip(audio_float * 32767, -32768, 32767).astype(np.int16)
 
     def find_first_last_non_silent(
         self,
@@ -57,13 +101,13 @@ class AudioNormalizer:
         else:
             samples_to_pad_end = self.samples_to_pad_start
 
-        # Vectorized silence detection - much faster than Python loops
+        # Vectorized silence detection
         amplitude_threshold = 32767 * (10 ** (silence_threshold_db / 20))
-        
+
         # Find all non-silent indices at once
         non_silent_mask = np.abs(audio_data) > amplitude_threshold
         non_silent_indices = np.where(non_silent_mask)[0]
-        
+
         if len(non_silent_indices) == 0:
             return 0, len(audio_data)
 
@@ -76,9 +120,15 @@ class AudioNormalizer:
         )
 
     def normalize(self, audio_data: np.ndarray) -> np.ndarray:
-        """Normalize audio to int16 format."""
+        """Normalize audio to int16 format with optional scipy-powered RMS/peak normalization."""
+        # Convert to int16 first
         if audio_data.dtype != np.int16:
-            return np.clip(audio_data * 32767, -32768, 32767).astype(np.int16)
+            audio_data = np.clip(audio_data * 32767, -32768, 32767).astype(np.int16)
+
+        # Apply scipy-based loudness normalization if configured
+        if HAS_SCIPY and (settings.AUDIO_RMS_TARGET is not None or settings.AUDIO_PEAK_TARGET is not None):
+            audio_data = self._apply_scipy_normalization(audio_data)
+
         return audio_data
 
 
@@ -105,37 +155,41 @@ class AudioService:
         loop = asyncio.get_running_loop()
 
         def _process():
-            nonlocal audio_chunk
             inner_normalizer = normalizer
             if inner_normalizer is None:
                 inner_normalizer = AudioNormalizer()
                 inner_normalizer.sample_rate = audio_chunk.sample_rate
 
             # Normalize once here; trim_audio skips its own normalize since we pass the normalizer.
-            audio_chunk.audio = inner_normalizer.normalize(audio_chunk.audio)
+            norm_audio = inner_normalizer.normalize(audio_chunk.audio)
+            result_chunk = AudioChunk(
+                audio=norm_audio,
+                sample_rate=audio_chunk.sample_rate,
+                text=audio_chunk.text,
+            )
 
             if trim_audio:
-                audio_chunk = AudioService.trim_audio(
-                    audio_chunk, chunk_text, speed, is_last_chunk, inner_normalizer
+                result_chunk = AudioService.trim_audio(
+                    result_chunk, chunk_text, speed, is_last_chunk, inner_normalizer
                 )
 
             chunk_data = b""
-            if len(audio_chunk.audio) > 0:
-                chunk_data = writer.write_chunk(audio_chunk.audio)
+            if len(result_chunk.audio) > 0:
+                chunk_data = writer.write_chunk(result_chunk.audio)
 
             if is_last_chunk:
                 final_data = writer.write_chunk(finalize=True)
-                audio_chunk.output = chunk_data + (final_data if final_data else b"")
+                result_chunk.output = chunk_data + (final_data if final_data else b"")
             elif chunk_data:
-                audio_chunk.output = chunk_data
-            
-            return audio_chunk
+                result_chunk.output = chunk_data
+
+            return result_chunk
 
         try:
             return await loop.run_in_executor(None, _process)
         except Exception as e:
-            logger.error(f"Error converting audio stream to {output_format}: {str(e)}")
-            raise ValueError(f"Failed to convert audio stream to {output_format}: {str(e)}")
+            logger.error(f"Error converting audio stream to {output_format}: {e}")
+            raise ValueError(f"Failed to convert audio stream to {output_format}: {e}")
 
     @staticmethod
     def trim_audio(
@@ -152,21 +206,18 @@ class AudioService:
             # Caller did not pre-normalize — do it now.
             audio_chunk.audio = normalizer.normalize(audio_chunk.audio)
 
-        trimmed_samples = 0
         if len(audio_chunk.audio) > (2 * normalizer.samples_to_trim):
             audio_chunk.audio = audio_chunk.audio[
                 normalizer.samples_to_trim : -normalizer.samples_to_trim
             ]
-            trimmed_samples += normalizer.samples_to_trim
 
         start_index, end_index = normalizer.find_first_last_non_silent(
             audio_chunk.audio, chunk_text, speed, is_last_chunk=is_last_chunk
         )
-        
+
         start_index = int(start_index)
         end_index = int(end_index)
 
         audio_chunk.audio = audio_chunk.audio[start_index:end_index]
-        trimmed_samples += start_index
 
         return audio_chunk
