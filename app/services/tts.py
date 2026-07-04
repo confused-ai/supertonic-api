@@ -46,36 +46,27 @@ class TTSService:
         return self._semaphore
 
     def _apply_ort_provider_patch(self):
-        """Patch ONNX Runtime InferenceSession to enforce the configured execution provider
-        and apply session-level performance options (graph optimization, parallel execution)."""
+        """Patch ONNX Runtime InferenceSession to force the configured execution provider.
+
+        supertonic's loader builds its own SessionOptions (ORT_ENABLE_ALL graph
+        opt + ORT_SEQUENTIAL execution + the intra/inter thread counts we pass to
+        TTS()), so we only override provider selection here and leave session
+        options to the library. Injecting our own opts here would be dead code —
+        the loader always passes sess_options= as a kwarg.
+        """
         try:
             _original_init = ort.InferenceSession.__init__
             force_provider = settings.FORCE_PROVIDERS
-            model_threads = settings.MODEL_THREADS
-            inter_threads = settings.MODEL_INTER_THREADS
 
             def _patched_init(session_self, path_or_bytes, *args, **kwargs):
                 available = ort.get_available_providers()
                 providers = self._select_providers(force_provider, available)
                 kwargs["providers"] = providers
-
-                # Inject session options only if the caller did not supply them.
-                if kwargs.get("sess_options") is None:
-                    opts = ort.SessionOptions()
-                    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-                    # Parallel execution mode is more efficient when intra_op threads > 1.
-                    opts.execution_mode = ort.ExecutionMode.ORT_PARALLEL
-                    if model_threads > 0:
-                        opts.intra_op_num_threads = model_threads
-                    if inter_threads > 0:
-                        opts.inter_op_num_threads = inter_threads
-                    kwargs["sess_options"] = opts
-
                 logger.debug(f"ORT providers: {providers}")
                 _original_init(session_self, path_or_bytes, *args, **kwargs)
 
             ort.InferenceSession.__init__ = _patched_init
-            logger.info(f"ONNX Runtime provider patched. Strategy: {force_provider}, graph_opt=ORT_ENABLE_ALL")
+            logger.info(f"ONNX Runtime provider forcing enabled. Strategy: {force_provider}")
         except Exception as e:
             logger.warning(f"Could not patch onnxruntime: {e}")
 
@@ -123,6 +114,12 @@ class TTSService:
         """Eagerly load the model at startup without blocking the event loop."""
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(_tts_executor, self._ensure_model_loaded)
+        logger.info(
+            f"TTS threading: MAX_WORKERS={settings.MAX_WORKERS} "
+            f"MODEL_THREADS={settings.MODEL_THREADS} "
+            f"SYNTHESIS_BATCH_SIZE={settings.SYNTHESIS_BATCH_SIZE} "
+            f"(cpu_cores={os.cpu_count()})"
+        )
         # Create the semaphore bound to this running loop.
         self._semaphore = asyncio.Semaphore(settings.MAX_WORKERS)
         # Warm up the model so the first real request hits a hot ONNX graph.
